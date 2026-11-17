@@ -1,0 +1,2317 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f7f4ee">
+<style>
+/* base reset: the page keeps clear of the phone's notch and home bar */
+:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; font: 14px system-ui, sans-serif; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+<title>Genki Drill</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
+<style>
+/* Layout: one-column phone app. Home = streak + today's review + topics; Dictionary = searchable word list; Lesson = top bar / task / sticky answer sheet. */
+:root {
+  --bg: #f7f4ee;
+  --card: #ffffff;
+  --ink: #1d2238;
+  --muted: #6b6f85;
+  --line: #e3ded3;
+  --accent: #4655d4;
+  --accent-ink: #ffffff;
+  --accent-edge: #2f3cad;
+  --gold: #e9a23b;
+  --fire: #f07a35;
+  --good: #2e9e64;
+  --good-bg: #dcf3e5;
+  --good-edge: #1f7a4a;
+  --bad: #d9434a;
+  --bad-bg: #fbe1e2;
+  --bad-edge: #a92d33;
+  --sel-bg: #e7e9fb;
+  --learn: #a9b1ee;
+  --xp-bar: #c9821a;
+  --font-ui: "Nunito", "M PLUS Rounded 1c", system-ui, sans-serif;
+  --font-jp: "M PLUS Rounded 1c", "Noto Sans JP", "Hiragino Maru Gothic ProN", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #14172a; --card: #1e2238; --ink: #eef0f8; --muted: #9da2bd; --line: #30365a;
+  --accent: #7d89f0; --accent-ink: #10132a; --accent-edge: #5662c9; --gold: #f0b65c; --fire: #f59a5e;
+  --good: #5fcf8f; --good-bg: #173a2a; --good-edge: #3e9e68; --bad: #f07a80; --bad-bg: #42202a; --bad-edge: #b4525b; --sel-bg: #2a3060; --learn: #4a55a8; --xp-bar: #b88530;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #14172a; --card: #1e2238; --ink: #eef0f8; --muted: #9da2bd; --line: #30365a;
+  --accent: #7d89f0; --accent-ink: #10132a; --accent-edge: #5662c9; --gold: #f0b65c; --fire: #f59a5e;
+  --good: #5fcf8f; --good-bg: #173a2a; --good-edge: #3e9e68; --bad: #f07a80; --bad-bg: #42202a; --bad-edge: #b4525b; --sel-bg: #2a3060; --learn: #4a55a8; --xp-bar: #b88530;
+  color-scheme: dark; }
+
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 16px; font-weight: 500; -webkit-tap-highlight-color: transparent; overflow: hidden; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; -webkit-user-select: none; user-select: none; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.jp { font-family: var(--font-jp); }
+#app { height: 100%; display: flex; flex-direction: column; max-width: 560px; margin: 0 auto; }
+.screen { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.gut { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+/* the raised edge is a shadow, not a thicker border: it takes no space, so pressing a button never moves anything around it */
+.btn { --edge: var(--line); --lift: 3px; border: 2px solid var(--line); border-radius: 16px; background: var(--card); padding: 14px 18px; font-weight: 700; font-size: 16px;
+  box-shadow: 0 var(--lift) 0 var(--edge); transition: transform .06s, box-shadow .06s; }
+.btn:active:not(:disabled) { transform: translateY(var(--lift)); box-shadow: 0 0 0 var(--edge); }
+.btn:disabled { --lift: 0px; }
+.btn-main { font-weight: 800; background: var(--accent); color: var(--accent-ink); border-color: var(--accent-edge); --edge: var(--accent-edge); text-transform: uppercase; letter-spacing: .6px; width: 100%; }
+.btn-main:disabled { background: var(--line); color: var(--muted); border-color: var(--line); --edge: var(--line); cursor: default; }
+
+/* tabs */
+.tabs { display: flex; border-top: 2px solid var(--line); background: var(--bg); padding-block: 6px 8px; gap: 8px; }
+.tabs button { flex: 1; border: none; background: none; border-radius: 14px; padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-weight: 700; font-size: 12px; color: var(--muted); }
+.tabs button .g { font-family: var(--font-jp); font-size: 22px; font-weight: 800; line-height: 1.1; }
+.tabs button[aria-current="page"] { color: var(--accent); background: var(--sel-bg); }
+
+/* ---------- Home ---------- */
+.h-top { display: flex; align-items: center; justify-content: space-between; padding-block: 14px 6px; gap: 8px; }
+.logo { font-family: var(--font-ui); font-weight: 800; font-size: 26px; color: var(--accent); letter-spacing: .5px; }
+.chips { display: flex; gap: 6px; }
+.chip { display: flex; align-items: center; gap: 5px; font-weight: 800; font-size: 16px; padding: 6px 10px; border-radius: 12px; font-variant-numeric: tabular-nums; }
+.chip svg { width: 22px; height: 22px; }
+.chip.fire { color: var(--fire); }
+.chip.fire.off { color: var(--muted); }
+.chip.fire.off svg { filter: grayscale(1); opacity: .5; }
+.chip.xp { color: var(--gold); }
+.h-body { display: flex; flex-direction: column; gap: 16px; padding-block: 8px 28px; }
+.panel { background: var(--card); border: 2px solid var(--line); border-radius: 20px; padding: 16px; }
+.goal { display: flex; gap: 16px; align-items: center; }
+.ring { width: 76px; height: 76px; flex: none; position: relative; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.goal-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.goal-txt h2 { margin: 0; font-size: 20px; font-weight: 800; text-wrap: balance; }
+.goal-txt p { margin: 0; color: var(--muted); font-size: 14px; }
+.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 14px; }
+.wd { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); font-weight: 600; }
+.wd i { width: 32px; height: 32px; max-width: 100%; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-style: normal; font-family: var(--font-jp); font-size: 14px; box-sizing: border-box; }
+.wd.on i { background: var(--fire); border-color: var(--fire); color: #fff; font-weight: 800; }
+.wd.today i { outline: 2px solid var(--accent); outline-offset: 2px; }
+.now { display: flex; flex-direction: column; gap: 10px; border-color: var(--accent); }
+.eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--accent); }
+.now h2 { margin: 0; font-size: clamp(24px, 6.8vw, 30px); line-height: 1.15; font-weight: 800; text-wrap: balance; }
+.now p { margin: 0 0 4px; color: var(--muted); font-size: 15px; font-weight: 500; }
+/* ---------- XP by day chart ---------- */
+.xpc { display: flex; flex-direction: column; gap: 6px; }
+.xpc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.xpc-head h2 { margin: 0; font-size: 17px; font-weight: 700; }
+.seg { display: flex; background: var(--bg); border: 2px solid var(--line); border-radius: 12px; padding: 2px; gap: 2px; }
+.seg button { border: none; background: none; border-radius: 9px; padding: 5px 10px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.xpc-sum { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.xpc-sum b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.xpc-plot { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: 150px auto; column-gap: 6px; }
+.xpc-y { position: relative; font-size: 11px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; min-width: 22px; }
+.xpc-y span { position: absolute; right: 0; transform: translateY(-50%); }
+.xpc-area { position: relative; border-bottom: 1px solid var(--muted); }
+.xpc-grid { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); }
+.xpc-goal { position: absolute; left: 0; right: 0; border-top: 2px dashed var(--muted); opacity: .7; pointer-events: none; }
+.xpc-key { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+.xpc-key i { width: 18px; border-top: 2px dashed var(--muted); opacity: .7; }
+.xpc-bars { position: absolute; inset: 0; display: flex; gap: 2px; }
+.xpc-col { flex: 1; min-width: 0; border: none; background: none; padding: 0; display: flex; align-items: flex-end; justify-content: center; position: relative; border-radius: 6px; }
+.xpc-col i { display: block; width: 100%; max-width: 26px; background: var(--xp-bar); border-radius: 4px 4px 0 0; transition: height .9s cubic-bezier(.2,.8,.2,1); }
+.xpc-col.zero i { background: none; }
+.xpc-col:hover, .xpc-col[aria-pressed="true"] { background: var(--sel-bg); }
+.xpc-tip { position: absolute; transform: translate(-50%, calc(-100% - 8px)); background: var(--ink); color: var(--card); border-radius: 8px; padding: 4px 8px;
+  font-size: 12px; font-weight: 700; white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; z-index: 2; }
+.xpc-x { grid-column: 2; display: flex; gap: 2px; padding-top: 4px; }
+.xpc-x span { flex: 1; min-width: 0; text-align: center; font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: visible; font-variant-numeric: tabular-nums; }
+.xpc-x span.today { color: var(--ink); font-weight: 700; }
+
+/* ---------- Progress motion ---------- */
+#ringArc { transition: stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1); }
+.bar.grow i { transition: width 1.1s cubic-bezier(.2,.8,.2,1); }
+.bump { animation: bump .5s cubic-bezier(.3,1.6,.5,1); }
+@keyframes bump { 40% { transform: scale(1.3); } }
+.wd.pop i { animation: dot-in .45s cubic-bezier(.3,1.6,.5,1) backwards; animation-delay: var(--d, 0ms); }
+@keyframes dot-in { from { transform: scale(.3); opacity: 0; } }
+.r-prog .pv { display: flex; align-items: baseline; gap: 8px; }
+.r-prog .gain { font-size: 14px; font-weight: 700; color: var(--good); font-variant-numeric: tabular-nums; }
+.streak-bg { position: fixed; inset: 0; z-index: 15; background: var(--bg); display: flex; align-items: center; justify-content: center;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); animation: fade .25s ease-out; }
+@keyframes fade { from { opacity: 0; } }
+.streak { width: 100%; max-width: 480px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
+.st-flame { width: 120px; height: 120px; color: var(--fire); animation: pop .6s cubic-bezier(.3,1.6,.5,1), flicker 2.4s ease-in-out .6s infinite; transform-origin: 50% 90%; }
+.st-flame svg { width: 100%; height: 100%; }
+@keyframes flicker { 50% { transform: scale(1.04, .97) rotate(-1.5deg); } }
+.st-num { font-size: 72px; font-weight: 800; line-height: 1; color: var(--fire); font-variant-numeric: tabular-nums; }
+.streak h2 { margin: 0; font-size: 26px; font-weight: 800; text-wrap: balance; }
+.streak p { margin: 0 0 8px; color: var(--muted); font-weight: 500; max-width: 34ch; }
+.streak .week { width: 100%; margin: 4px 0 16px; }
+.set { display: flex; flex-direction: column; gap: 10px; }
+.set small { color: var(--muted); font-size: 13px; font-weight: 500; }
+.set .sync { justify-content: flex-start; text-align: left; }
+.set-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.set-chips button { border: 2px solid var(--line); background: var(--card); border-radius: 12px; padding: 8px 12px; font-weight: 700; font-size: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+.set-chips button small { font-size: 11px; font-weight: 500; color: var(--muted); }
+.set-chips button[aria-pressed="true"] { border-color: var(--accent); background: var(--sel-bg); color: var(--accent); }
+.set-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; text-align: left; }
+.set-row b { color: var(--accent); font-weight: 700; }
+.set-row b.off { color: var(--muted); }
+.btn.danger { color: var(--bad); width: 100%; }
+/* author credit: a shimmering link at the very bottom of the profile */
+.made { align-self: center; margin-top: 8px; padding: 10px 14px; font-size: 15px; font-weight: 800; text-decoration: none; border-radius: 12px;
+  background: linear-gradient(90deg, var(--accent), var(--fire), var(--gold), #e05aa0, var(--accent)) 0 0 / 300% 100%;
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--accent);
+  animation: shimmer 4s linear infinite; }
+.made:hover, .made:focus-visible { animation-duration: 1.6s; }
+@keyframes shimmer { to { background-position: 300% 0; } }
+.mist { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; }
+.mist .ico { width: 40px; height: 40px; border-radius: 12px; background: var(--bad-bg); color: var(--bad); display: grid; place-items: center; font-family: var(--font-jp); font-weight: 800; font-size: 20px; flex: none; }
+.mist span { display: flex; flex-direction: column; min-width: 0; }
+.mist small { color: var(--muted); font-weight: 500; font-size: 13px; }
+.sec { font-size: 13px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); margin: 6px 2px -4px; }
+.topics { display: flex; flex-direction: column; gap: 10px; }
+.topic { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 12px 14px; }
+.topic .glyph { width: 52px; height: 52px; flex: none; border-radius: 16px; display: grid; place-items: center; font-family: var(--font-jp); font-weight: 800; font-size: 26px; background: var(--sel-bg); color: var(--accent); }
+.topic.passed { border-color: var(--gold); --edge: var(--gold); }
+.topic.passed .glyph { background: var(--gold); color: #fff; position: relative; }
+.topic .check { position: absolute; right: -6px; bottom: -6px; width: 24px; height: 24px; border-radius: 50%; background: var(--good); color: #fff; display: grid; place-items: center; border: 2px solid var(--card); }
+.topic .check svg { width: 14px; height: 14px; }
+.pill { display: inline-block; align-self: flex-start; font-size: 12px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; padding: 2px 8px; border-radius: 8px; background: var(--good-bg); color: var(--good); }
+.topic .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.topic .nm { font-weight: 700; font-size: 17px; display: flex; justify-content: space-between; gap: 8px; }
+.topic .nm small { color: var(--muted); font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.badge { align-self: flex-start; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 8px; background: var(--sel-bg); color: var(--accent); }
+.topic .nm small.hot { color: var(--accent); }
+.topic .meta { font-size: 13px; font-weight: 500; color: var(--muted); }
+.bar { height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; display: flex; }
+.bar i { display: block; height: 100%; background: var(--gold); transition: width .4s; }
+.bar i.part { background: var(--learn); }
+.all { display: flex; flex-direction: column; gap: 10px; }
+.all .nm { font-weight: 700; font-size: 17px; display: flex; justify-content: space-between; gap: 8px; }
+.all .nm small { color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; }
+.lg { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.lg span { display: inline-flex; align-items: center; gap: 6px; }
+.lg i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.lg i.done { background: var(--gold); }
+.lg i.part { background: var(--learn); }
+.dots { display: inline-flex; gap: 4px; align-items: center; }
+.dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+.dots i.on { background: var(--gold); }
+.h-foot { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.h-foot .btn { font-size: 14px; padding: 10px 14px; }
+.legend { text-align: center; color: var(--muted); font-size: 13px; margin: 0; }
+.sync { display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; color: var(--muted); font-size: 13px; font-weight: 600; }
+.sync i { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.sync.ok i { background: var(--good); }
+.sync.warn i { background: var(--gold); }
+
+.cur { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; font-weight: 800; color: var(--muted); }
+.cur select { font: inherit; color: var(--ink); background: var(--card); border: 2px solid var(--line); border-radius: 10px; padding: 6px 8px; font-weight: 800; max-width: 100%; }
+
+/* ---------- Lesson page and grammar notes ---------- */
+.u-top { display: flex; align-items: center; gap: 6px; padding-block: 10px 6px; }
+.u-top .ttl { display: flex; flex-direction: column; min-width: 0; }
+.u-top h1 { margin: 0; font-size: 22px; font-weight: 800; }
+.u-top small { color: var(--muted); font-weight: 600; font-size: 13px; }
+.u-body { display: flex; flex-direction: column; gap: 12px; padding-block: 8px 28px; }
+.drill .glyph { background: var(--good-bg); color: var(--good); }
+.note-btn .glyph { background: var(--line); color: var(--ink); }
+.note { display: flex; flex-direction: column; gap: 10px; }
+.note h2 { margin: 0; font-size: 19px; font-weight: 800; text-wrap: balance; }
+.note p { margin: 0; font-size: 15px; line-height: 1.5; }
+.note ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: 15px; line-height: 1.45; }
+.exs { display: flex; flex-direction: column; gap: 8px; }
+.exs div { display: flex; flex-direction: column; gap: 1px; border-left: 3px solid var(--learn); padding-left: 10px; }
+.exs b { font-family: var(--font-jp); font-size: 17px; font-weight: 700; overflow-wrap: anywhere; }
+.exs span { font-size: 14px; color: var(--muted); font-weight: 500; }
+.gt-wrap { overflow-x: auto; }
+.gt { width: 100%; border-collapse: collapse; font-size: 15px; }
+.gt th, .gt td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+.gt th { background: var(--sel-bg); font-size: 13px; font-weight: 700; }
+.gt td { font-family: var(--font-jp); font-weight: 500; }
+
+/* ---------- Notes as tap-through stories ---------- */
+.story { cursor: pointer; -webkit-user-select: none; user-select: none; }
+.st-top { display: flex; flex-direction: column; gap: 10px; padding-block: 12px 4px; }
+.st-bars { display: flex; gap: 4px; }
+.st-bars span { flex: 1; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.st-bars i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width .25s; }
+.st-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.st-head .ttl { display: flex; flex-direction: column; min-width: 0; }
+.st-head b { font-size: 15px; font-weight: 700; }
+.st-head small { font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.st-stage { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding-block: 8px; }
+.st-card { margin-block: auto; display: flex; flex-direction: column; gap: 16px; padding-block: 8px; }
+.st-card.fwd { animation: st-in .22s ease-out; }
+.st-card.back { animation: st-back .22s ease-out; }
+@keyframes st-in { from { opacity: 0; transform: translateX(24px); } }
+@keyframes st-back { from { opacity: 0; transform: translateX(-24px); } }
+.st-eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--accent); }
+.st-card h2 { margin: 0; font-size: clamp(26px, 7.4vw, 34px); line-height: 1.15; font-weight: 800; text-wrap: balance; }
+.st-card h2.cont { font-size: 20px; color: var(--muted); }
+.st-card p { margin: 0; font-size: 18px; line-height: 1.5; font-weight: 500; }
+.st-card ul { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; font-size: 18px; line-height: 1.45; font-weight: 500; }
+.st-card .exs { gap: 14px; }
+.st-card .exs div { border-left-width: 4px; padding-left: 12px; gap: 2px; }
+.st-card .exs b { font-size: 21px; line-height: 1.4; }
+.st-card .exs span { font-size: 15px; }
+.st-card .gt { font-size: 16px; background: var(--card); }
+.st-card .gt th, .st-card .gt td { padding: 8px 10px; }
+.st-end { align-items: center; text-align: center; }
+.st-end .big { font-family: var(--font-jp); font-size: 64px; font-weight: 800; color: var(--gold); line-height: 1.1; }
+.st-end .btn { width: 100%; }
+.st-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-block: 6px 12px; color: var(--muted); font-size: 13px; font-weight: 600; text-align: center; }
+.st-nav button { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); display: grid; place-items: center; padding: 0; color: var(--ink); flex: none; }
+.st-nav button:disabled { opacity: .35; cursor: default; }
+.st-nav svg { width: 22px; height: 22px; }
+
+/* ---------- Dictionary ---------- */
+.d-top { display: flex; flex-direction: column; gap: 10px; padding-block: 14px 10px; }
+.d-top h1 { margin: 0; font-size: 24px; font-weight: 800; }
+.d-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.d-lesson { --lift: 2px; padding: 8px 12px; font-size: 14px; border-radius: 12px; display: flex; align-items: center; gap: 6px; }
+.d-lesson svg { width: 14px; height: 14px; }
+.pick { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; }
+.pick button { display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; border: 2px solid var(--line); background: var(--card); border-radius: 14px; padding: 12px 14px; font-weight: 700; }
+.pick button small { color: var(--muted); font-weight: 500; font-size: 13px; }
+.pick button[aria-pressed="true"] { border-color: var(--accent); background: var(--sel-bg); color: var(--accent); }
+.search { width: 100%; box-sizing: border-box; border: 2px solid var(--line); border-radius: 14px; background: var(--card); padding: 12px 14px; font-weight: 600; font-size: 16px; }
+.search::placeholder { color: var(--muted); }
+.filters { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.filters::-webkit-scrollbar { display: none; }
+.filters button { flex: none; border: 2px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: 13px; color: var(--muted); display: flex; gap: 6px; }
+.filters button small { font-size: 12px; font-variant-numeric: tabular-nums; }
+.filters button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.d-list { display: flex; flex-direction: column; gap: 8px; padding-block: 4px 16px; }
+.d-group { font-size: 13px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 10px 2px 0; }
+.d-row { border: 2px solid var(--line); border-radius: 14px; background: var(--card); padding: 10px 14px; text-align: left; display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.d-row .r1 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.d-row .k { display: flex; flex-direction: column; min-width: 0; }
+.d-row .k b { font-family: var(--font-jp); font-size: 19px; font-weight: 700; overflow-wrap: anywhere; }
+.d-row .k small { color: var(--muted); font-size: 12px; font-weight: 500; overflow-wrap: anywhere; }
+.d-row .ru { font-weight: 600; font-size: 15px; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.d-more { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 2px solid var(--line); padding-top: 8px; font-size: 13px; font-weight: 500; color: var(--muted); }
+.d-more .txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.d-more .note { color: var(--ink); }
+.d-more .say { width: 40px; height: 40px; border-radius: 12px; }
+.d-more .say svg { width: 20px; height: 20px; }
+.ex { color: var(--bad); font-family: var(--font-jp); font-weight: 800; font-size: 12px; border: 2px solid var(--bad); border-radius: 6px; padding: 0 4px; }
+.d-empty { text-align: center; color: var(--muted); font-weight: 600; padding: 32px 8px; }
+.d-foot { padding-block: 10px; border-top: 2px solid var(--line); }
+
+/* ---------- Lesson ---------- */
+.l-top { display: flex; align-items: center; gap: 12px; padding-block: 14px 6px; }
+.icon-btn { border: none; background: none; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; color: var(--muted); border-radius: 12px; flex: none; }
+.icon-btn svg { width: 24px; height: 24px; }
+.prog { flex: 1; height: 16px; border-radius: 8px; background: var(--line); overflow: hidden; }
+.prog i { display: block; height: 100%; width: 0; background: var(--good); border-radius: 8px; transition: width .45s cubic-bezier(.3,1.4,.5,1); box-shadow: inset 0 -4px 0 rgba(0,0,0,.1); }
+.hearts { display: flex; align-items: center; gap: 4px; color: var(--bad); font-weight: 800; font-size: 18px; font-variant-numeric: tabular-nums; }
+.hearts svg { width: 24px; height: 24px; }
+.hearts.hit { animation: thump .4s; }
+@keyframes thump { 40% { transform: scale(1.35); } }
+.l-sub { display: flex; justify-content: space-between; gap: 12px; min-height: 20px; font-size: 14px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.combo { text-align: right; font-weight: 700; color: var(--gold); }
+.l-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding-block: 6px 16px; }
+.q { display: flex; flex-direction: column; gap: 18px; flex: 1; }
+.q-kind { margin: 0; font-size: 17px; font-weight: 700; color: var(--muted); text-wrap: balance; }
+.q-kind .again { font-weight: 800; display: block; font-size: 13px; color: var(--bad); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+.prompt { display: flex; align-items: center; gap: 12px; }
+.prompt-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.prompt .big { font-family: var(--font-jp); font-weight: 800; font-size: clamp(38px, 11vw, 54px); line-height: 1.15; overflow-wrap: anywhere; }
+.prompt .big.sent { font-size: clamp(24px, 6.8vw, 32px); line-height: 1.4; font-weight: 700; }
+.tile.w { font-size: 18px; padding: 10px 12px; }
+.prompt .ru { font-weight: 800; font-size: clamp(26px, 7.5vw, 34px); line-height: 1.2; text-wrap: balance; }
+.prompt .sub { color: var(--muted); font-weight: 600; font-size: 15px; }
+.lvl { order: 9; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--muted); padding-top: 4px; }
+.say { flex: none; width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; padding: 0; background: var(--accent); color: var(--accent-ink); border-color: var(--accent-edge); } --edge: var(--accent-edge);
+.say svg { width: 26px; height: 26px; }
+/* answers sit at the bottom of the screen, within reach of the thumb */
+.q > .opts, .q > .match, .q > .line { margin-top: auto; }
+.q > .intro { margin-block: auto; }
+.opts { display: grid; gap: 10px; }
+.opts.two { grid-template-columns: 1fr 1fr; }
+.opt { display: flex; align-items: center; gap: 12px; text-align: left; font-weight: 600; font-size: 17px; min-height: 60px; min-width: 0; }
+.opt .n { width: 26px; height: 26px; flex: none; border: 2px solid var(--line); border-radius: 8px; display: grid; place-items: center; font-size: 13px; color: var(--muted); }
+.opt .t { min-width: 0; overflow-wrap: anywhere; }
+.opt .t.jp { font-size: 22px; font-weight: 700; }
+.opt[aria-pressed="true"], .pair[aria-pressed="true"] { background: var(--sel-bg); border-color: var(--accent); --edge: var(--accent); color: var(--accent); }
+.opt.ok, .pair.ok { background: var(--good-bg); border-color: var(--good); --edge: var(--good); color: var(--good); }
+.opt.bad, .pair.bad { background: var(--bad-bg); border-color: var(--bad); --edge: var(--bad); color: var(--bad); animation: shake .35s; }
+.pair.ok { opacity: .5; }
+@keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.match { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.match > div { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pair { min-height: 62px; display: grid; place-items: center; text-align: center; font-weight: 600; font-size: 15px; padding: 10px 8px; overflow-wrap: anywhere; }
+.pair.jp { font-size: 20px; }
+.line { min-height: 64px; border-bottom: 2px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-end; padding-bottom: 10px; }
+.bank { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.tile { font-family: var(--font-jp); font-size: 24px; font-weight: 700; padding: 8px 14px; min-width: 50px; }
+.tile.ghost { visibility: hidden; }
+/* new-word card */
+.intro { border: 2px solid var(--accent); border-radius: 24px; background: var(--card); padding: 24px 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; position: relative; animation: pop .35s cubic-bezier(.3,1.5,.5,1); }
+.intro .kanji { font-family: var(--font-jp); font-size: 26px; font-weight: 700; color: var(--muted); }
+.intro .kana { font-family: var(--font-jp); font-size: clamp(40px, 12vw, 58px); font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+.intro .romaji { color: var(--muted); font-weight: 600; }
+.intro .tr { font-size: 26px; font-weight: 800; text-wrap: balance; padding-top: 8px; }
+.intro .note { font-size: 15px; font-weight: 600; color: var(--muted); }
+.intro .note.exn { color: var(--bad); }
+.intro .say { margin-top: 8px; }
+.intro .ex { position: absolute; top: 14px; right: 14px; font-size: 14px; padding: 2px 6px; }
+.intro-n { text-align: center; color: var(--muted); font-size: 13px; font-weight: 600; }
+.l-foot { border-top: 2px solid var(--line); background: var(--bg); padding-bottom: 14px; transition: background .2s, border-color .2s; }
+.l-foot.ok { background: var(--good-bg); border-color: var(--good); }
+.l-foot.bad { background: var(--bad-bg); border-color: var(--bad); }
+.l-foot-in { display: flex; flex-direction: column; gap: 12px; padding-top: 14px; }
+.msg:empty { display: none; }
+.msg { display: flex; flex-direction: column; gap: 2px; }
+.msg b { font-size: 21px; font-weight: 800; }
+.l-foot.ok .msg b { color: var(--good); }
+.l-foot.bad .msg b { color: var(--bad); }
+.msg span { font-size: 15px; font-weight: 500; }
+.msg .jp { font-size: 18px; font-weight: 700; }
+.l-foot.ok .btn-main { background: var(--good); border-color: var(--good-edge); --edge: var(--good-edge); color: #fff; }
+.l-foot.bad .btn-main { background: var(--bad); border-color: var(--bad-edge); --edge: var(--bad-edge); color: #fff; }
+
+/* ---------- Result ---------- */
+.r-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px; padding-block: 32px 16px; }
+.r-big { font-family: var(--font-jp); font-weight: 800; font-size: clamp(40px, 12vw, 60px); color: var(--gold); line-height: 1.1; }
+.r-body h2 { margin: 0; font-size: 24px; font-weight: 800; text-wrap: balance; }
+.r-body p { margin: 0; color: var(--muted); max-width: 40ch; }
+.r-badge { width: 96px; height: 96px; flex: none; border-radius: 28px; background: var(--gold); color: #fff; display: grid; place-items: center; font-family: var(--font-jp); font-weight: 800; font-size: 48px; position: relative; animation: pop .5s cubic-bezier(.3,1.6,.5,1); }
+.r-badge .check { position: absolute; right: -8px; bottom: -8px; width: 36px; height: 36px; border-radius: 50%; background: var(--good); display: grid; place-items: center; border: 3px solid var(--bg); }
+.r-badge .check svg { width: 20px; height: 20px; }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.stat { border: 2px solid; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; text-align: center; }
+.stat span { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #fff; padding: 4px; }
+.stat b { font-size: 24px; font-weight: 800; padding: 10px 4px; background: var(--card); font-variant-numeric: tabular-nums; }
+.stat.x { border-color: var(--gold); } .stat.x span { background: var(--gold); } .stat.x b { color: var(--gold); }
+.stat.a { border-color: var(--good); } .stat.a span { background: var(--good); } .stat.a b { color: var(--good); }
+.stat.f { border-color: var(--fire); } .stat.f span { background: var(--fire); } .stat.f b { color: var(--fire); }
+.r-prog { width: 100%; box-sizing: border-box; text-align: left; display: flex; flex-direction: column; gap: 8px; }
+.r-prog .nm { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-weight: 700; }
+.r-prog .nm b { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.r-prog small { color: var(--muted); font-weight: 600; font-size: 13px; }
+.words { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 6px; }
+.word { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 14px; background: var(--card); border: 2px solid var(--line); }
+.word .jp { font-weight: 700; font-size: 18px; min-width: 0; overflow-wrap: anywhere; }
+.word.g .jp { font-size: 15px; }
+.word .ru { color: var(--muted); font-weight: 500; text-align: right; min-width: 0; }
+.word .ch { display: flex; align-items: center; justify-content: flex-end; gap: 4px; width: 56px; font-weight: 700; font-size: 15px; }
+.word.bad { border-color: var(--bad); }
+.up { color: var(--good); }
+.down { color: var(--bad); }
+.r-foot { display: flex; flex-direction: column; gap: 10px; padding-block: 12px 14px; }
+
+.sheet-bg { position: fixed; inset: 0; background: rgba(10,12,30,.45); display: flex; align-items: flex-end; justify-content: center; z-index: 10; }
+.sheet { background: var(--card); width: 100%; max-width: 560px; border-radius: 24px 24px 0 0; display: flex; flex-direction: column; gap: 12px; text-align: center;
+  padding-top: 24px; padding-bottom: max(20px, env(safe-area-inset-bottom, 0px)); box-sizing: border-box; }
+.sheet h3 { margin: 0; font-size: 20px; font-weight: 800; }
+.sheet p { margin: 0 0 6px; color: var(--muted); }
+.btn-quit { border: none; background: none; color: var(--bad); font-weight: 800; text-transform: uppercase; letter-spacing: .6px; padding: 12px; }
+#confetti { position: fixed; inset: 0; pointer-events: none; z-index: 20; width: 100%; height: 100%; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div id="app">
+<!-- HOME -->
+<section class="screen" id="home">
+  <header class="h-top gut">
+    <span class="logo">Genki Drill</span>
+    <div class="chips">
+      <span class="chip fire" id="hStreak" data-t-title="streakChip" role="img">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c1.5 4 6 6 6 12a6 6 0 0 1-12 0c0-3 1.5-5 3-6.5 0 2.3 1.2 3.5 2.3 3.8C10.6 8 11.3 5 12 2z"/><path fill="#ffd27a" d="M12 12c1 1.8 3 3 3 5.4a3 3 0 0 1-6 0c0-1.8 1-3 2-3.8 0 1 .4 1.8 1 2-.3-1.4-.3-2.6 0-3.6z"/></svg>
+        <span id="hStreakN">0</span>
+      </span>
+      <span class="chip xp" data-t-title="totalXp">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+        <span id="hXp">0</span>
+      </span>
+    </div>
+  </header>
+  <div class="scroll">
+    <div class="h-body gut">
+      <div class="panel now">
+        <span class="eyebrow" data-t="today"></span>
+        <h2 id="nowTitle"></h2>
+        <p id="nowSub"></p>
+        <button class="btn btn-main" id="smartBtn" type="button" data-t="start"></button>
+      </div>
+      <button class="btn mist" id="mistBtn" type="button" hidden>
+        <span class="ico">誤</span>
+        <span><b data-t="mistTitle"></b><small id="mistN"></small></span>
+      </button>
+      <p class="sec" data-t="lessons"></p>
+      <div class="topics" id="lessons"></div>
+    </div>
+  </div>
+</section>
+
+<!-- PROFILE -->
+<section class="screen" id="profile" hidden>
+  <div class="d-top gut"><h1 data-t="profile"></h1></div>
+  <div class="scroll">
+    <div class="h-body gut">
+      <div class="panel">
+        <div class="goal">
+          <div class="ring" aria-hidden="true">
+            <svg viewBox="0 0 76 76"><circle cx="38" cy="38" r="31" fill="none" stroke="var(--line)" stroke-width="9"/><circle id="ringArc" cx="38" cy="38" r="31" fill="none" stroke="var(--gold)" stroke-width="9" stroke-linecap="round" stroke-dasharray="194.8" stroke-dashoffset="194.8"/></svg>
+            <b id="ringTxt">0/30</b>
+          </div>
+          <div class="goal-txt">
+            <h2 id="goalTitle"></h2>
+            <p id="goalSub"></p>
+          </div>
+        </div>
+        <div class="week" id="week" data-t-aria="last7"></div>
+      </div>
+      <div class="stats" id="pStats"></div>
+      <div class="panel xpc">
+        <div class="xpc-head">
+          <h2 data-t="xpByDay"></h2>
+          <div class="seg" id="xpRange" role="group" data-t-aria="period">
+            <button type="button" data-r="7" data-t="d7"></button><button type="button" data-r="14" data-t="d14"></button><button type="button" data-r="30" data-t="d30"></button>
+          </div>
+        </div>
+        <p class="xpc-sum" id="xpSum"></p>
+        <div class="xpc-key" aria-hidden="true"><i></i><span data-t="xpKey"></span></div>
+        <div class="xpc-plot" id="xpPlot"></div>
+      </div>
+      <div class="panel all" id="allProg"></div>
+      <p class="sec" data-t="settings"></p>
+      <div class="panel set">
+        <b data-t="language"></b>
+        <div class="set-chips" id="langList" role="group" data-t-aria="language">
+          <button type="button" data-lang="ru" lang="ru">Русский</button><button type="button" data-lang="en" lang="en">English</button><button type="button" data-lang="ja" lang="ja">日本語</button>
+        </div>
+        <small data-t="langNote"></small>
+      </div>
+      <div class="panel set">
+        <b data-t="curTitle"></b>
+        <div class="set-chips" id="curList" role="group" data-t-aria="curAria"></div>
+        <small data-t="curNote"></small>
+      </div>
+      <button class="btn set-row" id="kanjiBtn" type="button"><span data-t="kanji"></span><b id="kanjiVal"></b></button>
+      <button class="btn set-row" id="soundBtn" type="button"><span data-t="sound"></span><b id="soundVal"></b></button>
+      <div class="panel set">
+        <b data-t="sync"></b>
+        <div class="sync" id="sync" role="status"><i></i><span id="syncTxt"></span></div>
+      </div>
+      <p class="sec" data-t="howTitle"></p>
+      <p class="legend" data-t="howText"></p>
+      <button class="btn danger" id="resetBtn" type="button" data-t="reset"></button>
+      <a class="made" href="https://t.me/amuru" target="_blank" rel="noopener">made by @Amuru</a>
+    </div>
+  </div>
+</section>
+
+<!-- ONE LESSON -->
+<section class="screen" id="unit" hidden>
+  <div class="u-top gut">
+    <button class="icon-btn" id="uBack" type="button" data-t-aria="toLessons"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div class="ttl"><h1 id="uTitle"></h1><small id="uSub"></small></div>
+  </div>
+  <div class="scroll"><div class="u-body gut" id="uBody"></div></div>
+</section>
+
+<!-- GRAMMAR NOTES -->
+<section class="screen story" id="note" hidden data-t-aria="notes">
+  <div class="st-top gut">
+    <div class="st-bars" id="stBars" aria-hidden="true"></div>
+    <div class="st-head">
+      <div class="ttl"><b id="stLesson"></b><small id="stCount"></small></div>
+      <button class="icon-btn" id="nBack" type="button" data-t-aria="closeNotes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>
+    </div>
+  </div>
+  <div class="st-stage gut" id="stStage"><article class="st-card" id="stCard" aria-live="polite"></article></div>
+  <div class="st-nav gut">
+    <button type="button" id="stPrev" data-t-aria="back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <span id="stHint"></span>
+    <button type="button" id="stNext" data-t-aria="next"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+</section>
+
+<!-- DICTIONARY -->
+<section class="screen" id="dict" hidden>
+  <div class="d-top gut">
+    <div class="d-head"><h1 data-t="dict"></h1><button class="btn d-lesson" id="dLesson" type="button" aria-haspopup="dialog"></button></div>
+    <input class="search" id="dq" type="search" data-t-ph="searchPh" autocomplete="off" data-t-aria="searchAria">
+    <div class="filters" id="dFilters" role="group" data-t-aria="filterAria"></div>
+  </div>
+  <div class="scroll"><div class="d-list gut" id="dList"></div></div>
+  <div class="d-foot gut" id="dFoot"><button class="btn btn-main" id="dTrain" type="button"></button></div>
+</section>
+
+<!-- LESSON -->
+<section class="screen" id="lesson" hidden>
+  <div class="l-top gut">
+    <button class="icon-btn" id="quitBtn" type="button" data-t-aria="quitAria"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>
+    <div class="prog" aria-hidden="true"><i id="prog"></i></div>
+    <span class="hearts" id="hearts"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/></svg><span id="heartsN">5</span></span>
+  </div>
+  <div class="l-sub gut"><span id="count"></span><span class="combo" id="combo" aria-live="polite"></span></div>
+  <main class="l-body gut"><div class="q" id="q" aria-live="polite"></div></main>
+  <footer class="l-foot" id="foot">
+    <div class="l-foot-in gut">
+      <div class="msg" id="msg"></div>
+      <button class="btn btn-main" id="act" type="button"></button>
+    </div>
+  </footer>
+</section>
+
+<!-- RESULT -->
+<section class="screen" id="result" hidden>
+  <div class="r-body gut" id="rBody"></div>
+  <div class="r-foot gut">
+    <button class="btn btn-main" id="rAgain" type="button" data-t="again"></button>
+    <button class="btn" id="rHome" type="button"></button>
+  </div>
+</section>
+
+<nav class="tabs gut" id="tabs" data-t-aria="tabs">
+  <button type="button" data-tab="home" aria-current="page"><span class="g">家</span><span data-t="tabHome"></span></button>
+  <button type="button" data-tab="dict"><span class="g">辞</span><span data-t="tabDict"></span></button>
+  <button type="button" data-tab="profile"><span class="g">私</span><span data-t="tabProfile"></span></button>
+</nav>
+</div>
+
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<script>
+// The course: lessons → word topics, grammar notes and grammar drills.
+// A word is [kana, kanji, romaji, russian, note, isException]; its id is "kana|kanji", so words can be added, moved or reordered freely.
+window.TANGO_COURSE = (() => {
+const num = (kana, romaji, n, note) => [kana, '', romaji, String(n), note || '', 0];
+const DATES = [['ついたち','tsuitachi',1,''],['ふつか','futsuka',1,''],['みっか','mikka',1,''],['よっか','yokka',1,'не путай с ようか (8-е)'],['いつか','itsuka',1,''],
+ ['むいか','muika',1,''],['なのか','nanoka',1,''],['ようか','youka',1,'не путай с よっか (4-е)'],['ここのか','kokonoka',1,''],['とおか','tooka',1,''],
+ ['じゅういちにち','juuichinichi',0,''],['じゅうににち','juuninichi',0,''],['じゅうさんにち','juusannichi',0,''],['じゅうよっか','juuyokka',1,'4 → よっか'],
+ ['じゅうごにち','juugonichi',0,''],['じゅうろくにち','juurokunichi',0,''],['じゅうしちにち','juushichinichi',0,'7 → しち'],['じゅうはちにち','juuhachinichi',0,''],
+ ['じゅうくにち','juukunichi',0,'9 → く'],['はつか','hatsuka',1,'особое слово'],['にじゅういちにち','nijuuichinichi',0,''],['にじゅうににち','nijuuninichi',0,''],
+ ['にじゅうさんにち','nijuusannichi',0,''],['にじゅうよっか','nijuuyokka',1,'4 → よっか'],['にじゅうごにち','nijuugonichi',0,''],['にじゅうろくにち','nijuurokunichi',0,''],
+ ['にじゅうしちにち','nijuushichinichi',0,'7 → しち'],['にじゅうはちにち','nijuuhachinichi',0,''],['にじゅうくにち','nijuukunichi',0,'9 → く'],
+ ['さんじゅうにち','sanjuunichi',0,''],['さんじゅういちにち','sanjuuichinichi',0,'']];
+const KNUM = ['一','二','三','四','五','六','七','八','九','十','十一','十二'];
+const MRU = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+const MON = [['いちがつ','ichigatsu'],['にがつ','nigatsu'],['さんがつ','sangatsu'],['しがつ','shigatsu','не よんがつ!'],['ごがつ','gogatsu'],['ろくがつ','rokugatsu'],
+ ['しちがつ','shichigatsu','не ながつ!'],['はちがつ','hachigatsu'],['くがつ','kugatsu','не きゅうがつ!'],['じゅうがつ','juugatsu'],['じゅういちがつ','juuichigatsu'],['じゅうにがつ','juunigatsu']];
+// gap drill item: [sentence with ＿, russian, answer, wrong options, explanation]; "×" = no particle
+const gap = (k, rows) => rows.map(r => ({ k, jp: r[0], ru: r[1], a: r[2], w: r[3], ex: r[4] || '' }));
+// sentence drill item: [russian, tiles in order, distractor tiles, explanation, order freedom: 0 exact, 1 first and last tile fixed, 2 only the last fixed]
+const ord = (k, rows) => rows.map(r => ({ k, ru: r[0], tiles: r[1], extra: r[2] || [], ex: r[3] || '', free: r[4] || 0 }));
+
+return [
+{ id: 'l0', name: 'Основы', sub: 'Числа от 0 до 100', glyph: '数', topics: [
+ { id:'num1', name:'Числа 0–10', glyph:'一', items:[
+  num('ゼロ','zero',0,'также れい'), num('いち','ichi',1), num('に','ni',2), num('さん','san',3), num('よん','yon',4,'также し; в составных бывает よ'),
+  num('ご','go',5), num('ろく','roku',6), num('なな','nana',7,'также しち'), num('はち','hachi',8), num('きゅう','kyuu',9,'также く'), num('じゅう','juu',10)]},
+ { id:'num2', name:'Числа 11–20', glyph:'十', items:[
+  num('じゅういち','juuichi',11), num('じゅうに','juuni',12), num('じゅうさん','juusan',13), num('じゅうよん','juuyon',14,'также じゅうし'), num('じゅうご','juugo',15),
+  num('じゅうろく','juuroku',16), num('じゅうなな','juunana',17,'также じゅうしち'), num('じゅうはち','juuhachi',18), num('じゅうきゅう','juukyuu',19,'также じゅうく'), num('にじゅう','nijuu',20)]},
+ { id:'num3', name:'Десятки до 100', glyph:'百', items:[
+  num('さんじゅう','sanjuu',30), num('よんじゅう','yonjuu',40), num('ごじゅう','gojuu',50), num('ろくじゅう','rokujuu',60), num('ななじゅう','nanajuu',70),
+  num('はちじゅう','hachijuu',80), num('きゅうじゅう','kyuujuu',90), num('ひゃく','hyaku',100)]}
+]},
+
+{ id: 'l1', name: 'Урок 1', sub: 'Знакомство: кто ты и откуда', glyph: '一', topics: [
+ { id:'l1school', name:'Учёба', glyph:'学', items:[
+  ['だいがく','大学','daigaku','университет','',0],['こうこう','高校','koukou','старшая школа','',0],['がくせい','学生','gakusei','студент','',0],
+  ['だいがくせい','大学生','daigakusei','студент университета','',0],['りゅうがくせい','留学生','ryuugakusei','иностранный студент','',0],
+  ['せんせい','先生','sensei','учитель; преподаватель','',0],['〜ねんせい','〜年生','~nensei','студент …-го курса','いちねんせい — первокурсник',0],
+  ['せんこう','専攻','senkou','специальность','',0]]},
+ { id:'l1person', name:'Люди', glyph:'人', items:[
+  ['わたし','私','watashi','я','',0],['ともだち','友達','tomodachi','друг','',0],['〜さん','','~san','господин / госпожа …','',0],
+  ['〜じん','〜人','~jin','житель страны','にほんじん — японец',0]]},
+ { id:'l1time', name:'Время', glyph:'時', items:[
+  ['いま','今','ima','сейчас','',0],['ごぜん','午前','gozen','до полудня (a.m.)','',0],['ごご','午後','gogo','после полудня (p.m.)','',0],
+  ['〜じ','〜時','~ji','… часов (на часах)','いちじ — час',0],['はん','半','han','половина','にじはん — половина третьего (2:30)',0]]},
+ { id:'l1other', name:'Разное', glyph:'他', items:[
+  ['にほん','日本','nihon','Япония','',0],['アメリカ','','amerika','США','',0],['〜ご','〜語','~go','… язык','にほんご — японский язык',0],
+  ['〜さい','〜歳','~sai','… лет (возраст)','',0],['でんわ','電話','denwa','телефон','',0],['〜ばん','〜番','~ban','номер …','',0],
+  ['ばんごう','番号','bangou','номер','',0],['でんわばんごう','電話番号','denwa bangou','номер телефона','',0],['なまえ','名前','namae','имя','',0],
+  ['なん','何','nan','что','также なに',0]]},
+ { id:'l1expr', name:'Выражения', glyph:'言', items:[
+  ['あのう','','anou','э-э… (привлечь внимание)','',0],['はい','','hai','да','',0],['そうです','','sou desu','да, верно','',0],
+  ['そうですか','','sou desu ka','вот как; правда?','',0]]},
+ { id:'l1country', name:'Страны', glyph:'国', items:[
+  ['イギリス','','igirisu','Великобритания','',0],['オーストラリア','','oosutoraria','Австралия','',0],['かんこく','韓国','kankoku','Южная Корея','',0],
+  ['カナダ','','kanada','Канада','',0],['ちゅうごく','中国','chuugoku','Китай','',0],['インド','','indo','Индия','',0],['エジプト','','ejiputo','Египет','',0],
+  ['フィリピン','','firipin','Филиппины','',0],['ロシア','','roshia','Россия','',0]]},
+ { id:'l1major', name:'Специальности', glyph:'専', items:[
+  ['アジアけんきゅう','アジア研究','ajia kenkyuu','востоковедение','',0],['けいざい','経済','keizai','экономика','',0],['こうがく','工学','kougaku','инженерное дело','',0],
+  ['こくさいかんけい','国際関係','kokusai kankei','международные отношения','',0],['コンピューター','','konpyuutaa','компьютер; информатика','',0],
+  ['せいじ','政治','seiji','политика','',0],['せいぶつがく','生物学','seibutsugaku','биология','',0],['ビジネス','','bijinesu','бизнес','',0],
+  ['ぶんがく','文学','bungaku','литература','',0],['れきし','歴史','rekishi','история','',0]]},
+ { id:'l1job', name:'Занятия и профессии', glyph:'職', items:[
+  ['いしゃ','医者','isha','врач','',0],['かいしゃいん','会社員','kaishain','офисный работник','',0],['かんごし','看護師','kangoshi','медсестра, медбрат','',0],
+  ['こうこうせい','高校生','koukousei','старшеклассник','',0],['しゅふ','主婦','shufu','домохозяйка','',0],
+  ['だいがくいんせい','大学院生','daigakuinsei','аспирант, магистрант','',0],['べんごし','弁護士','bengoshi','юрист, адвокат','',0]]},
+ { id:'l1family', name:'Семья', glyph:'族', items:[
+  ['おかあさん','お母さん','okaasan','мама','',0],['おとうさん','お父さん','otousan','папа','',0],['おねえさん','お姉さん','oneesan','старшая сестра','',0],
+  ['おにいさん','お兄さん','oniisan','старший брат','',0],['いもうと','妹','imouto','младшая сестра','',0],['おとうと','弟','otouto','младший брат','',0]]}
+]},
+
+{ id: 'l3', name: 'Урок 3', sub: 'Глаголы, частицы, время', glyph: '三', topics: [
+ { id:'l3verbs', name:'Глаголы', glyph:'動', items:[
+  ['いく','行く','iku','идти, ехать','1-е спряжение: いきます',0],['はなす','話す','hanasu','говорить','1-е спряжение: はなします',0],
+  ['のむ','飲む','nomu','пить','1-е спряжение: のみます',0],['よむ','読む','yomu','читать','1-е спряжение: よみます',0],
+  ['かえる','帰る','kaeru','возвращаться','исключение: 1-е спряжение → かえります',1],['おきる','起きる','okiru','вставать, просыпаться','2-е спряжение: おきます',0],
+  ['たべる','食べる','taberu','есть','2-е спряжение: たべます',0],['ねる','寝る','neru','спать, ложиться спать','2-е спряжение: ねます',0],
+  ['みる','見る','miru','смотреть','2-е спряжение: みます',0],['くる','来る','kuru','приходить','неправильный: きます',1],
+  ['する','','suru','делать','неправильный: します',1],['べんきょうする','勉強する','benkyou suru','учиться, заниматься','как する: べんきょうします',0]]},
+ { id:'l3adv', name:'Наречия частоты', glyph:'度', items:[
+  ['まいにち','毎日','mainichi','каждый день','',0],['よく','','yoku','часто','',0],['たいてい','','taitei','обычно','',0],['ときどき','','tokidoki','иногда','',0],
+  ['あまり','','amari','почти не; нечасто','только с отрицанием',1],['ぜんぜん','','zenzen','совсем не; никогда','только с отрицанием',1],
+  ['ちょっと','','chotto','немного, чуть-чуть','ещё вежливый отказ: それは ちょっと…',0]]}
+ ],
+ notes: [
+  { t:'Спряжение глаголов', b:[
+   { p:'В словарной форме глаголы оканчиваются на «-у»: う く す つ ぬ ぶ む る.' },
+   { tb:{ h:['1-е спряжение','2-е спряжение (-иру / -эру)','Неправильные'], r:[['いく きく はなす のむ よむ','おきる たべる ねる みる','くる する']] } },
+   { p:'Исключение: かえる выглядит как 2-е спряжение, но спрягается по 1-му. Таких глаголов около 30.' }]},
+  { t:'Вежливая форма: 〜ます и 〜ません', b:[
+   { p:'Настояще-будущее время. Утверждение: основа + ます. Отрицание: основа + ません.' },
+   { tb:{ h:['Словарная','Утверждение','Отрицание'], r:[['いく','いきます','いきません'],['よむ','よみます','よみません'],['かえる ＊','かえります','かえりません'],['おきる','おきます','おきません'],['たべる','たべます','たべません'],['ねる','ねます','ねません'],['くる','きます','きません'],['する','します','しません']] } }]},
+  { t:'Частицы を, で, に, へ', b:[
+   { tb:{ h:['Частица','Что значит'], r:[['を','объект действия (винительный падеж)'],['で','место, где происходит действие'],['に','1) конечная цель движения  2) время действия'],['へ (читается «э»)','конечная цель движения, то же что に']] } },
+   { ex:[['コーヒーを のみます','Пью кофе'],['おんがくを ききます','Слушаю музыку'],['テレビを みます','Смотрю телевизор'],['としょかんで ほんを よみます','Читаю книгу в библиотеке'],['うちで えいがを みます','Смотрю кино дома'],['うちに かえります · うちへ かえります','Возвращаюсь домой'],['きょう がっこうに いきません','Сегодня не иду в школу'],['にちようびに きょうとに いきます','В воскресенье еду в Киото'],['じゅうじに ねます','Ложусь спать в десять']] }]},
+  { t:'いく и くる', b:[
+   { p:'Смотрим с точки зрения говорящего: いく — движение от говорящего, くる — к говорящему.' },
+   { ex:[['わたしも いきます','Я тоже пойду'],['おばちゃんが きました','Тётушка пришла'],['いってきます','Я пойду и вернусь (говорят, уходя из дома)']] }]},
+  { t:'ちょっと', b:[
+   { p:'Буквально «немного», «чуть-чуть». Ещё так вежливо отказывают: «не очень удобно», «не получится».' },
+   { ex:[['それは ちょっと…','Это как-то не очень…']] }]},
+  { t:'Время и частица に', b:[
+   { p:'に ставится после конкретного времени, названного цифрами или днём недели:' },
+   { ex:[['じゅうじ よんじゅうにふんに おきます','Встаю в 10:42'],['にじゅうごにちに かえります','Вернусь 25-го числа'],['じゅうがつに モスクワに いきます','В октябре поеду в Москву'],['にちようびに パーティーに いきます','В воскресенье пойду на вечеринку']] },
+   { p:'に не ставится:' },
+   { li:['со словами «сегодня», «завтра»: あした きます · きょう べんきょうします','с регулярными интервалами: まいにち テレビを みます','с вопросом いつ: いつ いきますか'] },
+   { p:'Можно и с に, и без: время суток (あさ(に) しんぶんを よみます) и выходные (しゅうまつ(に) なにを しますか).' }]},
+  { t:'Порядок слов', b:[
+   { li:['Подлежащее стоит до сказуемого.','Сказуемое завершает предложение.','В самом конце — частицы か, よ, ね.'] },
+   { ex:[['わたしは きょう としょかんで にほんごを べんきょうします','Я сегодня в библиотеке занимаюсь японским: кто → когда → где → что → глагол'],['わたしは よく しちじごろ うちへ かえります','Я часто возвращаюсь домой около семи']] }]},
+  { t:'Наречия частоты', b:[
+   { tb:{ h:['Слово','Значение'], r:[['まいにち','каждый день'],['よく','часто'],['たいてい','обычно'],['ときどき','иногда'],['あまり + отрицание','почти не, нечасто'],['ぜんぜん + отрицание','совсем не, никогда']] } },
+   { ex:[['わたしは ときどき きっさてんに いきます','Я иногда хожу в кафе'],['わたしは ぜんぜん テレビを みません','Я совсем не смотрю телевизор'],['たけしさんは あまり べんきょうしません','Такэси почти не занимается']] }]}
+ ],
+ drills: [
+  { id:'l3conj', name:'Спряжение: 〜ます и 〜ません', glyph:'ま', gen:'verbPres' },
+  { id:'l3part', name:'Частицы を で に へ', glyph:'を', items: gap('Какая частица пропущена?', [
+   ['コーヒー＿のみます','Пью кофе','を',['に','で','へ'],'を — объект действия'],
+   ['おんがく＿ききます','Слушаю музыку','を',['に','で','へ'],'を — объект действия'],
+   ['テレビ＿みます','Смотрю телевизор','を',['に','で','へ'],'を — объект действия'],
+   ['としょかん＿ほんを よみます','Читаю книгу в библиотеке','で',['に','を','へ'],'で — место, где происходит действие'],
+   ['うち＿えいがを みます','Смотрю кино дома','で',['に','を','へ'],'で — место, где происходит действие'],
+   ['うち＿かえります','Возвращаюсь домой','に',['を','で','×'],'に (или へ) — цель движения'],
+   ['きょう がっこう＿いきません','Сегодня не иду в школу','へ',['を','で','×'],'へ (или に) — цель движения'],
+   ['にちようびに きょうと＿いきます','В воскресенье еду в Киото','に',['を','で','×'],'に — цель движения'],
+   ['わたし＿きょう としょかんで べんきょうします','Я сегодня занимаюсь в библиотеке','は',['を','に','で'],'は — тема предложения']]) },
+  { id:'l3time', name:'Время: нужна ли に?', glyph:'に', items: gap('Что стоит после времени?', [
+   ['じゅうじ＿ねます','Ложусь спать в десять','に',['×','で','を'],'конкретное время → に'],
+   ['にちようび＿きょうとに いきます','В воскресенье еду в Киото','に',['×','で','を'],'день недели → に'],
+   ['じゅうがつ＿モスクワに いきます','В октябре поеду в Москву','に',['×','で','を'],'месяц → に'],
+   ['にじゅうごにち＿かえります','Вернусь 25-го числа','に',['×','で','を'],'дата → に'],
+   ['あした＿きます','Приду завтра','×',['に','で','を'],'«завтра», «сегодня» — без に'],
+   ['きょう＿べんきょうします','Сегодня занимаюсь','×',['に','で','を'],'«завтра», «сегодня» — без に'],
+   ['まいにち＿テレビを みます','Каждый день смотрю телевизор','×',['に','で','を'],'регулярные интервалы — без に'],
+   ['いつ＿いきますか','Когда пойдёшь?','×',['に','で','を'],'после いつ частицы нет']]) },
+  { id:'l3order', name:'Порядок слов', glyph:'順', items: ord('Собери предложение', [
+   ['Я сегодня в библиотеке занимаюсь японским',['わたしは','きょう','としょかんで','にほんごを','べんきょうします'],[],'тема → время → место → объект → глагол',1],
+   ['Я часто возвращаюсь домой около семи',['わたしは','よく','しちじごろ','うちへ','かえります'],[],'глагол всегда в конце',1],
+   ['Я иногда хожу в кафе',['わたしは','ときどき','きっさてんに','いきます'],[],'',1],
+   ['Я совсем не смотрю телевизор',['わたしは','ぜんぜん','テレビを','みません'],['みます'],'ぜんぜん требует отрицания',1],
+   ['Такэси почти не занимается',['たけしさんは','あまり','べんきょうしません'],['べんきょうします'],'あまり требует отрицания']]) }
+ ]},
+
+{ id: 'l4', name: 'Урок 4', sub: 'Есть и нет, прошедшее время, даты', glyph: '四', topics: [
+ { id:'week', name:'Дни недели', glyph:'曜', items:[
+  ['にちようび','日曜日','nichiyoubi','воскресенье','日 — солнце',0],['げつようび','月曜日','getsuyoubi','понедельник','月 — луна',0],
+  ['かようび','火曜日','kayoubi','вторник','火 — огонь',0],['すいようび','水曜日','suiyoubi','среда','水 — вода',0],
+  ['もくようび','木曜日','mokuyoubi','четверг','木 — дерево',0],['きんようび','金曜日','kin’youbi','пятница','金 — золото',0],
+  ['どようび','土曜日','doyoubi','суббота','土 — земля',0]]},
+ { id:'dates', name:'Числа месяца', glyph:'日', items: DATES.map((d,i)=>[d[0],(i+1)+'日',d[1],(i+1)+'-е число',d[3],d[2]]) },
+ { id:'months', name:'Месяцы', glyph:'月', items: MON.map((m,i)=>[m[0],KNUM[i]+'月',m[1],MRU[i],m[2]||'',m[2]?1:0]) },
+ { id:'time', name:'Слова времени', glyph:'時', items:[
+  ['おととい','','ototoi','позавчера','не путай с おととし',0],['きのう','昨日','kinou','вчера','',0],['きょう','今日','kyou','сегодня','',0],
+  ['あした','明日','ashita','завтра','',0],['あさって','','asatte','послезавтра','',0],['にしゅうかんまえ','二週間前','nishuukan mae','две недели назад','',0],
+  ['せんしゅう','先週','senshuu','на прошлой неделе','せん = прошлый',0],['こんしゅう','今週','konshuu','на этой неделе','こん = этот',0],
+  ['らいしゅう','来週','raishuu','на следующей неделе','らい = следующий',0],['さらいしゅう','再来週','saraishuu','через неделю после следующей','さらい = через один',0],
+  ['にかげつまえ','二か月前','nikagetsu mae','два месяца назад','',0],['せんげつ','先月','sengetsu','в прошлом месяце','',0],
+  ['こんげつ','今月','kongetsu','в этом месяце','',0],['らいげつ','来月','raigetsu','в следующем месяце','',0],
+  ['さらいげつ','再来月','saraigetsu','через месяц после следующего','',0],['おととし','','ototoshi','позапрошлый год','не путай с おととい',0],
+  ['きょねん','去年','kyonen','в прошлом году','не せんねん!',1],['ことし','今年','kotoshi','в этом году','не こんねん!',1],
+  ['らいねん','来年','rainen','в следующем году','',0],['さらいねん','再来年','sarainen','через год после следующего','',0]]},
+ { id:'l4words', name:'Слова из грамматики', glyph:'文', items:[
+  ['ある','','aru','быть, иметься (о неодушевлённом)','1-е спряжение: あります',0],['いる','','iru','быть, находиться (об одушевлённом)','2-е спряжение: います',0],
+  ['かう','買う','kau','покупать','1-е спряжение: かいます',0],['まつ','待つ','matsu','ждать','1-е спряжение: まちます',0],
+  ['とる','撮る','toru','фотографировать, снимать','しゃしんを とります',0],['たくさん','','takusan','много','',0],
+  ['〜じかん','〜時間','~jikan','… часов (длительность)','いちじかん — один час, без частицы',0],['ぐらい','','gurai','примерно, около','さんじかんぐらい — около трёх часов',0],
+  ['まえ','前','mae','перед, напротив','ホテルの まえ — перед гостиницей',0]]}
+ ],
+ notes: [
+  { t:'X が あります / います', b:[
+   { p:'Так говорят, что где-то что-то или кто-то есть. あります — о неодушевлённом, います — об одушевлённом. Место стоит с に.' },
+   { ex:[['あそこに マクドナルドが あります','Там находится Макдональдс'],['テレビが ありません','У меня нет телевизора'],['じかんが ありますか','У вас есть время?'],['あそこに りゅうがくせいが います','Там иностранные студенты'],['にほんじんの ともだちが います','У меня есть друг-японец']] }]},
+  { t:'Где это находится', b:[
+   { ex:[['マクドナルドは どこですか','Где Макдональдс? Ответ: ここ / そこ / あそこ です']] },
+   { p:'Относительно другого предмета: X は Y の まえ です — X перед (напротив) Y.' },
+   { ex:[['マクドナルドは あの ホテルの まえです','Макдональдс перед той гостиницей']] },
+   { p:'Если это место действия, нужна で:' },
+   { ex:[['わたしは マクドナルドの まえで たけしさんを まちます','Я буду ждать Такэси перед Макдональдсом']] }]},
+  { t:'でした — «был»', b:[
+   { tb:{ h:['','Настоящее','Прошедшее'], r:[['Утверждение','〜です','〜でした'],['Отрицание','〜じゃないです','〜じゃなかったです · 〜じゃありませんでした']] } },
+   { ex:[['やましたせんせいは さくらだいがくの がくせいでした','Учитель Ямасита был студентом университета Сакура'],['あれは にほんの えいがじゃなかったです','То было не японское кино']] }]},
+  { t:'Прошедшее время глаголов', b:[
+   { tb:{ h:['','Настоящее','Прошедшее'], r:[['Утверждение','〜ます','〜ました'],['Отрицание','〜ません','〜ませんでした']] } },
+   { ex:[['メアリーさんは くじごろ うちへ かえりました','Мэри вернулась домой около девяти'],['わたしは きのう にほんごを べんきょうしませんでした','Я вчера не занимался японским']] }]},
+  { t:'Частица も — «тоже»', b:[
+   { ex:[['たけしさんは にほんじんです。たろうさんも にほんじんです','Такэси японец. Таро тоже японец'],['メアリーさんは くつを かいました。かばんも かいました','Мэри купила обувь. Сумку тоже купила'],['せんしゅう きょうとに いきました。おおさかにも いきました','На прошлой неделе ездила в Киото. И в Осаку тоже'],['にちようびにも パーティーに いきました','И в воскресенье тоже ходил на вечеринку']] },
+   { p:'も заменяет は, が и を, а после に и で просто добавляется: にも, でも.' }]},
+  { t:'いちじかん — длительность', b:[
+   { p:'いちじに — «в час» (момент). いちじかん — «один час» (сколько длилось), частица не нужна.' },
+   { ex:[['メアリーさんは たけしさんを いちじかん まちました','Мэри ждала Такэси час'],['きのう しちじかんはん ねました','Вчера я спала семь с половиной часов'],['きのう にほんごを さんじかんぐらい べんきょうしました','Вчера занималась японским около трёх часов']] }]},
+  { t:'たくさん — «много»', b:[
+   { ex:[['きょうとで しゃしんを たくさん とりました','Я сделала много фотографий в Киото'],['やさいが たくさん あります','Овощей много']] },
+   { p:'たくさん можно поставить и перед существительным: たくさん しゃしんを とりました.' }]},
+  { t:'Частица と — «и», «вместе с»', b:[
+   { ex:[['きょうとと おおさかに いきました','Я ездил в Киото и Осаку'],['にほんごと えいごを はなします','Я говорю по-японски и по-английски'],['メアリーさんは スーさんと かんこくに いきます','Мэри поедет в Корею вместе с Сью']] }]}
+ ],
+ drills: [
+  { id:'l4aru', name:'あります или います', glyph:'有', items: gap('Что подходит?', [
+   ['あそこに マクドナルドが＿','Там находится Макдональдс','あります',['います','ありません','いません'],'неодушевлённое → あります'],
+   ['テレビが＿','У меня нет телевизора','ありません',['いません','あります','います'],'неодушевлённое, отрицание → ありません'],
+   ['じかんが＿か','У вас есть время?','あります',['います','ありません','いません'],'неодушевлённое → あります'],
+   ['あそこに りゅうがくせいが＿','Там иностранные студенты','います',['あります','ありません','いません'],'люди → います'],
+   ['にほんじんの ともだちが＿','У меня есть друг-японец','います',['あります','ありません','いません'],'люди → います'],
+   ['おとうとが＿','У меня нет младшего брата','いません',['ありません','います','あります'],'люди, отрицание → いません'],
+   ['あした テストが＿','Завтра контрольная','あります',['います','ありません','いません'],'события тоже → あります'],
+   ['きょうは しゅくだいが＿','Сегодня нет домашнего задания','ありません',['いません','あります','います'],'неодушевлённое, отрицание → ありません']]) },
+  { id:'l4past', name:'Прошедшее: 〜ました и 〜ませんでした', glyph:'た', gen:'verbPast' },
+  { id:'l4part', name:'も, と, で и длительность', glyph:'も', items: gap('Что пропущено?', [
+   ['たけしさんは にほんじんです。たろうさん＿にほんじんです','Такэси японец. Таро тоже японец','も',['は','と','を'],'«тоже» → も вместо は'],
+   ['くつを かいました。かばん＿かいました','Купила обувь. Сумку тоже купила','も',['を','と','に'],'«тоже» → も вместо を'],
+   ['きょうとに いきました。おおさか＿いきました','Ездила в Киото. И в Осаку тоже','にも',['もに','をも','には'],'после に частица も добавляется: にも'],
+   ['きょうと＿おおさかに いきました','Ездил в Киото и Осаку','と',['も','を','で'],'と соединяет существительные: «и»'],
+   ['にほんご＿えいごを はなします','Говорю по-японски и по-английски','と',['も','を','で'],'と соединяет существительные: «и»'],
+   ['メアリーさんは スーさん＿かんこくに いきます','Мэри поедет в Корею вместе с Сью','と',['を','も','で'],'と — «вместе с»'],
+   ['マクドナルドの まえ＿たけしさんを まちます','Жду Такэси перед Макдональдсом','で',['に','を','と'],'место действия → で'],
+   ['たけしさんを いちじかん＿まちました','Ждала Такэси час','×',['に','で','を'],'длительность — без частицы'],
+   ['いちじ＿おきました','Встал в час','に',['×','で','を'],'момент времени → に'],
+   ['やましたせんせいは がくせい＿','Учитель Ямасита был студентом','でした',['です','ました','じゃないです'],'です в прошедшем → でした'],
+   ['あれは にほんの えいが＿','То было не японское кино','じゃなかったです',['じゃないです','でした','ませんでした'],'отрицание в прошедшем → じゃなかったです']]) },
+  { id:'l4order', name:'Собери предложение', glyph:'順', items: ord('Собери предложение', [
+   ['Я сделала много фотографий в Киото',['わたしは','きょうとで','しゃしんを','たくさん','とりました'],[],'',1],
+   ['Вчера я спала семь с половиной часов',['きのう','しちじかんはん','ねました'],['に'],'длительность — без частицы',2],
+   ['Мэри вернулась домой около девяти',['メアリーさんは','くじごろ','うちへ','かえりました'],['かえります'],'',1],
+   ['Я вчера не занимался японским',['わたしは','きのう','にほんごを','べんきょうしませんでした'],['べんきょうしません'],'',1],
+   ['Овощей много',['やさいが','たくさん','あります'],['います'],'неодушевлённое → あります',2]]) }
+ ]},
+
+{ id: 'l5', name: 'Урок 5', sub: 'Прилагательные', glyph: '五', topics: [
+ { id:'nouns', name:'Существительные', glyph:'名', items:[
+  ['たべもの','食べ物','tabemono','еда','',0],['のみもの','飲み物','nomimono','напиток','',0],['くだもの','果物','kudamono','фрукты','',0],
+  ['やすみ','休み','yasumi','выходной; каникулы','',0],['りょこう','旅行','ryokou','путешествие','',0],['うみ','海','umi','море','',0],
+  ['サーフィン','','saafin','сёрфинг','',0],['おみやげ','お土産','omiyage','сувенир','',0],['バス','','basu','автобус','',0],
+  ['てんき','天気','tenki','погода','',0],['しゅくだい','宿題','shukudai','домашнее задание','',0],['テスト','','tesuto','тест, контрольная','',0],
+  ['たんじょうび','誕生日','tanjoubi','день рождения','',0],['へや','部屋','heya','комната','',0],['ぼく','僕','boku','я (говорят мужчины)','',0],
+  ['Ｌサイズ','','eru saizu','размер L','S — エス, M — エム',0]]},
+ { id:'iadj', name:'い-прилагательные', glyph:'い', items:[
+  ['あたらしい','新しい','atarashii','новый','↔ ふるい',0],['ふるい','古い','furui','старый','только о вещах, не о людях',1],
+  ['あつい','暑い','atsui','жаркий (погода)','↔ さむい',0],['さむい','寒い','samui','холодный (погода)','↔ あつい 暑い',0],
+  ['あつい','熱い','atsui','горячий (предмет)','чай, суп — 熱い',1],['いそがしい','忙しい','isogashii','занятой','↔ ひま(な)',0],
+  ['おおきい','大きい','ookii','большой','↔ ちいさい',0],['ちいさい','小さい','chiisai','маленький','↔ おおきい',0],
+  ['おもしろい','面白い','omoshiroi','интересный; смешной','↔ つまらない',0],['つまらない','','tsumaranai','скучный','↔ おもしろい',0],
+  ['やさしい','','yasashii','лёгкий; добрый','↔ むずかしい',0],['むずかしい','難しい','muzukashii','сложный','↔ やさしい',0],
+  ['かっこいい','','kakkoii','крутой, классный','как いい: かっこよくない',1],['こわい','怖い','kowai','страшный','',0],
+  ['かわいい','','kawaii','милый','',0],['たのしい','楽しい','tanoshii','весёлый, приятный','',0],
+  ['やすい','安い','yasui','дешёвый','↔ たかい',0],['たかい','高い','takai','дорогой; высокий','↔ やすい',0],
+  ['いい','','ii','хороший','исключение: よくない, よかった',1],['おいしい','','oishii','вкусный','',0]]},
+ { id:'naadj', name:'な-прилагательные', glyph:'な', items:[
+  ['すき','好き','suki','нравиться','〜が すきです',0],['きらい','嫌い','kirai','не нравиться','на い, но это な',1],
+  ['だいすき','大好き','daisuki','очень нравиться','〜が',0],['だいきらい','大嫌い','daikirai','ненавидеть','〜が',0],
+  ['きれい','','kirei','красивый; чистый','на い, но это な: きれいな へや',1],['げんき','元気','genki','бодрый; здоровый','',0],
+  ['しずか','静か','shizuka','тихий','↔ にぎやか',0],['にぎやか','','nigiyaka','оживлённый','↔ しずか',0],['ひま','暇','hima','свободный (о времени)','↔ いそがしい',0]]},
+ { id:'verbs', name:'Глаголы', glyph:'動', items:[
+  ['およぐ','泳ぐ','oyogu','плавать','う · うみで およぎます',0],['きく','聞く','kiku','спрашивать; слушать','せんせいに ききます · おんがくを ききます',0],
+  ['のる','乗る','noru','ехать на; садиться в','バスに のります (не を!)',1],['やる','','yaru','делать','サーフィンを やります',0],
+  ['でかける','出かける','dekakeru','выходить из дома','る-глагол',0]]},
+ { id:'adv', name:'Наречия и счёт', glyph:'副', items:[
+  ['いっしょに','一緒に','issho ni','вместе','',0],['すごく','','sugoku','очень (разговорно)','',0],['とても','','totemo','очень','',0],
+  ['だいじょうぶ','大丈夫','daijoubu','всё в порядке','',0],['どんな','','donna','какой (какого типа)','',0],
+  ['〜まい','〜枚','~mai','счётное: плоские предметы','てがみを にまい',0],['〜さつ','〜冊','~satsu','счётное: книги','ほんを さんさつ',0]]},
+ { id:'l5more', name:'Слова из слайдов: фильмы, кафе, семья', glyph:'新', items:[
+  ['えいが','映画','eiga','фильм','おもしろい えいが — интересный фильм',0],['しゃしん','写真','shashin','фотография','しゃしんを とります — фотографировать',0],
+  ['まち','町','machi','город; район','',0],['さかな','魚','sakana','рыба','',0],['としょかん','図書館','toshokan','библиотека','',0],
+  ['カフェ','','kafe','кафе','',0],['コーヒー','','koohii','кофе','',0],['がくしょく','学食','gakushoku','студенческая столовая','',0],
+  ['ケーキ','','keeki','торт, пирожное','',0],['かぞく','家族','kazoku','семья','',0],['そと','外','soto','снаружи, на улице','',0],
+  ['きみ','君','kimi','ты (неформально)','',0],['ほんとう','本当','hontou','правда','ほんとう？ — правда? честно?',0],
+  ['うん','','un','ага, да (неформально)','',0],['よかった','','yokatta','как хорошо! я рад!','прошедшее время от いい',0],
+  ['そろそろ','','sorosoro','пора; потихоньку','そろそろ ねましょうか — пора спать',0]]}
+ ],
+ notes: [
+  { t:'Прилагательные: настоящее время', b:[
+   { tb:{ h:['','Утверждение','Отрицание'], r:[['い: やすい','やすいです — дешёвый','やすくないです · やすくありません'],['な: げんき','げんきです — здоров','げんきじゃないです · げんきじゃありません']] } },
+   { p:'У い-прилагательных меняется окончание: い → くない. У な-прилагательных меняется связка: です → じゃないです.' }]},
+  { t:'Исключения: いい и かっこいい', b:[
+   { tb:{ h:['','Утверждение','Отрицание'], r:[['Настоящее','いいです','よくないです · よくありません'],['Прошедшее','よかったです','よくなかったです · よくありませんでした'],['Настоящее','かっこいいです','かっこよくないです'],['Прошедшее','かっこよかったです','かっこよくなかったです']] } },
+   { p:'Во всех формах, кроме словарной, いい превращается в よ-.' }]},
+  { t:'Наречия степени', b:[
+   { tb:{ h:['Слово','Значение'], r:[['すごく','невероятно, очень'],['とても','очень'],['ちょっと','немного']] } },
+   { ex:[['おきなわの うみは とても きれいです','Море на Окинаве очень красивое'],['この へやは ちょっと あついです','В этой комнате немного жарко']] }]},
+  { t:'Как это переводится', b:[
+   { p:'Японские прилагательные часто переводятся на русский наречиями.' },
+   { ex:[['へやは さむいです','В комнате холодно'],['そとは あつくないです','На улице не жарко'],['きのうは たのしかったです','Вчера было весело'],['さむくない？','Тебе не холодно?']] }]},
+  { t:'Прилагательные: прошедшее время', b:[
+   { tb:{ h:['','Утверждение','Отрицание'], r:[['い: さむい','さむかったです — было холодно','さむくなかったです · さむくありませんでした'],['な: げんき','げんきでした — был здоров','げんきじゃなかったです · げんきじゃありませんでした']] } },
+   { ex:[['テストは むずかしかったですか。— いいえ、ぜんぜん むずかしくなかったです','Контрольная была сложной? — Нет, совсем не сложной'],['その まちは にぎやかでしたか。— いいえ、にぎやかじゃなかったです','В том городе было шумно? — Нет, не было']] }]},
+  { t:'Прилагательное + существительное', b:[
+   { p:'Прилагательное ставится перед существительным. い-прилагательное — как есть, к な-прилагательному добавляется な.' },
+   { tb:{ h:['','Пример','Перевод'], r:[['い','おもしろい えいが','интересный фильм'],['な','きれいな しゃしん','красивая фотография']] } },
+   { ex:[['きのう、おもしろい えいがを みました','Вчера я посмотрел интересный фильм'],['やましたせんせいは こわい せんせいです','Профессор Ямасита — строгий преподаватель'],['きょうとで きれいな しゃしんを とりました','Я сделал красивые фотографии в Киото'],['ここは とても にぎやかな まちです','Это очень оживлённый район']] }]},
+  { t:'すき и きらい', b:[
+   { p:'«Нравится» и «не нравится» — な-прилагательные. Тот, кому нравится, стоит с は, а то, что нравится, — с が.' },
+   { tb:{ h:['Кто','Что','Сказуемое'], r:[['X は','Y が','すきです / きらいです']] } },
+   { ex:[['ロバートさんは にほんごの クラスが すきです','Роберту нравятся уроки японского'],['やましたせんせいは さかなが きらいです','Учитель Ямасита не любит рыбу'],['きみが すきです','Ты мне нравишься']] },
+   { p:'Перед существительным получается すきな — «любимый».' },
+   { ex:[['すきな たべものは？','Какая твоя любимая еда?'],['すきな ほんは？','Какая твоя любимая книга?']] }]},
+  { t:'よかった', b:[
+   { p:'Прошедшее время от いい. Сказанное отдельно значит «Как хорошо!», «Я так рад!», «Какое облегчение!».' },
+   { ex:[['ほんとう？ — うん。','Честно? — Да.'],['ぼくら かぞく？ — そう、かぞくよ。','Мы семья? — Да, мы семья.'],['よかった！','Я так рад!']] }]},
+  { t:'〜ましょう и 〜ましょうか — «давайте»', b:[
+   { p:'Основа глагола (та же, что перед ます) + ましょう. С か предложение звучит мягче.' },
+   { tb:{ h:['Словарная','Давайте'], r:[['いく','いきましょう'],['たべる','たべましょう'],['のむ','のみましょう'],['かえる','かえりましょう'],['する','しましょう']] } },
+   { ex:[['いっしょに としょかんで べんきょうしましょう','Давай вместе позанимаемся в библиотеке'],['カフェで コーヒーを のみましょうか','Выпьем кофе в кафе?'],['いきましょうか。— うん','Пойдём? — Ага'],['かえりましょうか？','Пойдём домой?'],['さっ、たべましょうか','Ну что, давайте есть'],['どう しましょうか？','Что же нам делать?']] }]},
+  { t:'〜ませんか — приглашение', b:[
+   { li:['〜ませんか — вежливое приглашение: «не хотите ли?», «как насчёт?». Собеседник может отказаться.','〜ましょうか не ждёт ответа «да» или «нет»: «давай сделаем!».'] },
+   { ex:[['がくしょくで ケーキを たべませんか？','Как насчёт поесть торт в столовой?'],['そろそろ ねましょうか','Пойдёмте потихоньку спать']] }]}
+ ],
+ drills: [
+  { id:'l5pres', name:'Прилагательные: отрицание', glyph:'否', gen:'adjPres' },
+  { id:'l5past', name:'Прилагательные: прошедшее время', glyph:'過', gen:'adjPast' },
+  { id:'l5sent', name:'Переведи предложение', glyph:'訳', items: ord('Собери перевод', [
+   ['Эти часы дорогие',['この','とけいは','たかいです'],['たかくないです'],''],
+   ['Этот кофе невкусный',['この','コーヒーは','おいしくないです'],['おいしいじゃないです'],'い-прилагательное: い → くない'],
+   ['Учитель Ямасита бодрый',['やましたせんせいは','げんきです'],['げんきいです'],'な-прилагательное + です'],
+   ['Погода нехорошая',['てんきは','よくないです'],['いくないです'],'いい → よくない'],
+   ['Завтра я не буду свободен',['あしたは','ひまじゃないです'],['ひまくないです'],'な-прилагательное: じゃないです'],
+   ['Вчера я был занят',['きのうは','いそがしかったです'],['いそがしいでした'],'い-прилагательное: い → かった'],
+   ['Домашнее задание было сложным',['しゅくだいは','むずかしかったです'],['むずかしいでした'],'い-прилагательное: い → かった'],
+   ['Комната Такэси была не чистой',['たけしさんの','へやは','きれいじゃなかったです'],['きれくなかったです'],'きれい — это な-прилагательное'],
+   ['Погода была хорошая',['てんきは','よかったです'],['いかったです'],'いい → よかった'],
+   ['Поездка была невесёлой',['りょこうは','たのしくなかったです'],['たのしいじゃなかったです'],'い-прилагательное: い → くなかった'],
+   ['Гостиница была недорогой',['ホテルは','たかくなかったです'],['たかいじゃなかったです'],'い-прилагательное: い → くなかった'],
+   ['Море на Окинаве очень красивое',['おきなわの','うみは','とても','きれいです'],['きれいいです'],''],
+   ['В этой комнате немного жарко',['この','へやは','ちょっと','あついです'],['あついでした'],'']]) },
+  { id:'l5adjn', name:'Прилагательное + существительное', glyph:'修', items: gap('Что нужно между прилагательным и существительным?', [
+   ['おもしろい＿えいがを みました','Я посмотрел интересный фильм','×',['な','の','く'],'い-прилагательное стоит прямо перед существительным'],
+   ['きれい＿しゃしんを とりました','Я сделал красивые фотографии','な',['×','の','い'],'な-прилагательное + な + существительное'],
+   ['ここは にぎやか＿まちです','Это оживлённый район','な',['×','の','い'],'な-прилагательное + な + существительное'],
+   ['やましたせんせいは こわい＿せんせいです','Ямасита — строгий преподаватель','×',['な','の','く'],'い-прилагательное стоит прямо перед существительным'],
+   ['しずか＿へやです','Это тихая комната','な',['×','の','い'],'な-прилагательное + な + существительное'],
+   ['たかい＿ホテルです','Это дорогая гостиница','×',['な','の','く'],'い-прилагательное стоит прямо перед существительным'],
+   ['げんき＿ともだちです','Это бодрый друг','な',['×','の','い'],'な-прилагательное + な + существительное'],
+   ['あたらしい＿テストです','Это новая контрольная','×',['な','の','く'],'い-прилагательное стоит прямо перед существительным'],
+   ['ひま＿ひは ありますか','Есть свободный день?','な',['×','の','い'],'ひま — な-прилагательное'],
+   ['きれい＿まちですね','Красивый город, правда?','な',['×','い','の'],'きれい — な-прилагательное, хоть и кончается на い']]) },
+  { id:'l5suki', name:'すき и きらい', glyph:'好', items: gap('Что пропущено?', [
+   ['ロバートさんは にほんごの クラス＿すきです','Роберту нравятся уроки японского','が',['を','は','に'],'то, что нравится, стоит с が'],
+   ['やましたせんせいは さかな＿きらいです','Учитель не любит рыбу','が',['を','に','で'],'то, что не нравится, тоже стоит с が'],
+   ['わたしは コーヒー＿だいすきです','Я обожаю кофе','が',['を','に','の'],'то, что нравится, стоит с が'],
+   ['きみ＿すきです','Ты мне нравишься','が',['を','は','に'],'то, что нравится, стоит с が'],
+   ['わたしは さかなが すき＿','Я не люблю рыбу','じゃないです',['くないです','ないです','じゃなかったです'],'すき — な-прилагательное: すきじゃないです'],
+   ['テストが だいきらい＿','Терпеть не могу контрольные','です',['いです','なです','ます'],'な-прилагательное + です'],
+   ['すき＿たべものは？','Твоя любимая еда?','な',['の','が','×'],'перед существительным — すきな'],
+   ['すき＿ほんは なんですか','Какая твоя любимая книга?','な',['の','が','×'],'перед существительным — すきな']]) },
+  { id:'l5let', name:'Давайте: 〜ましょう и 〜ませんか', glyph:'誘', gen:'verbLet' },
+  { id:'l5order2', name:'Собери предложение: новые темы', glyph:'順', items: ord('Собери предложение', [
+   ['Давай вместе позанимаемся в библиотеке',['いっしょに','としょかんで','べんきょうしましょう'],['べんきょうします'],'',2],
+   ['Выпьем кофе в кафе?',['カフェで','コーヒーを','のみましょうか'],['のみますか'],'',2],
+   ['Как насчёт поесть торт в столовой?',['がくしょくで','ケーキを','たべませんか'],['たべましょう'],'приглашение — 〜ませんか',2],
+   ['Вчера я посмотрел интересный фильм',['きのう','おもしろい','えいがを','みました'],['おもしろいな'],'い-прилагательное — без な',0],
+   ['Это очень оживлённый район',['ここは','とても','にぎやかな','まちです'],['にぎやか'],'な-прилагательное + な',0],
+   ['Учитель Ямасита не любит рыбу',['やましたせんせいは','さかなが','きらいです'],['さかなを'],'то, что не нравится, — с が',0],
+   ['Пойдёмте потихоньку спать',['そろそろ','ねましょうか'],['ねませんか'],'',0]]) }
+ ]}
+];
+})();
+// English glosses for the course, keyed by word id ("kana|kanji"). Used in the English and Japanese interfaces.
+// A word entry is [gloss, note]; a note left out falls back to the Russian note only when that note has no Russian text in it.
+window.TANGO_EN = (() => {
+const W = {
+ // Lesson 1
+ 'だいがく|大学': ['college; university'], 'こうこう|高校': ['high school'], 'がくせい|学生': ['student'],
+ 'だいがくせい|大学生': ['college student'], 'りゅうがくせい|留学生': ['international student'], 'せんせい|先生': ['teacher; professor'],
+ '〜ねんせい|〜年生': ['…-year student', 'いちねんせい — first-year student'], 'せんこう|専攻': ['major (subject)'],
+ 'わたし|私': ['I'], 'ともだち|友達': ['friend'], '〜さん|': ['Mr./Ms. …'], '〜じん|〜人': ['… people (nationality)', 'にほんじん — Japanese person'],
+ 'いま|今': ['now'], 'ごぜん|午前': ['a.m.'], 'ごご|午後': ['p.m.'], '〜じ|〜時': ['… o’clock', 'いちじ — one o’clock'],
+ 'はん|半': ['half', 'にじはん — half past two'],
+ 'にほん|日本': ['Japan'], 'アメリカ|': ['U.S.A.'], '〜ご|〜語': ['… language', 'にほんご — Japanese language'], '〜さい|〜歳': ['… years old'],
+ 'でんわ|電話': ['telephone'], '〜ばん|〜番': ['number …'], 'ばんごう|番号': ['number'], 'でんわばんごう|電話番号': ['telephone number'],
+ 'なまえ|名前': ['name'], 'なん|何': ['what', 'also なに'],
+ 'あのう|': ['um… (to get attention)'], 'はい|': ['yes'], 'そうです|': ['that’s right'], 'そうですか|': ['I see; is that so?'],
+ 'イギリス|': ['Britain'], 'オーストラリア|': ['Australia'], 'かんこく|韓国': ['South Korea'], 'カナダ|': ['Canada'], 'ちゅうごく|中国': ['China'],
+ 'インド|': ['India'], 'エジプト|': ['Egypt'], 'フィリピン|': ['Philippines'], 'ロシア|': ['Russia'],
+ 'アジアけんきゅう|アジア研究': ['Asian studies'], 'けいざい|経済': ['economics'], 'こうがく|工学': ['engineering'],
+ 'こくさいかんけい|国際関係': ['international relations'], 'コンピューター|': ['computer; computer science'], 'せいじ|政治': ['politics'],
+ 'せいぶつがく|生物学': ['biology'], 'ビジネス|': ['business'], 'ぶんがく|文学': ['literature'], 'れきし|歴史': ['history'],
+ 'いしゃ|医者': ['doctor'], 'かいしゃいん|会社員': ['office worker'], 'かんごし|看護師': ['nurse'], 'こうこうせい|高校生': ['high school student'],
+ 'しゅふ|主婦': ['housewife'], 'だいがくいんせい|大学院生': ['graduate student'], 'べんごし|弁護士': ['lawyer'],
+ 'おかあさん|お母さん': ['mother'], 'おとうさん|お父さん': ['father'], 'おねえさん|お姉さん': ['older sister'], 'おにいさん|お兄さん': ['older brother'],
+ 'いもうと|妹': ['younger sister'], 'おとうと|弟': ['younger brother'],
+ // Lesson 3
+ 'いく|行く': ['to go', 'group 1: いきます'], 'はなす|話す': ['to speak', 'group 1: はなします'], 'のむ|飲む': ['to drink', 'group 1: のみます'],
+ 'よむ|読む': ['to read', 'group 1: よみます'], 'かえる|帰る': ['to go back; to return', 'exception, group 1: かえります'],
+ 'おきる|起きる': ['to get up; to wake up', 'group 2: おきます'], 'たべる|食べる': ['to eat', 'group 2: たべます'],
+ 'ねる|寝る': ['to sleep; to go to bed', 'group 2: ねます'], 'みる|見る': ['to see; to watch', 'group 2: みます'],
+ 'くる|来る': ['to come', 'irregular: きます'], 'する|': ['to do', 'irregular: します'], 'べんきょうする|勉強する': ['to study', 'like する: べんきょうします'],
+ 'まいにち|毎日': ['every day'], 'よく|': ['often'], 'たいてい|': ['usually'], 'ときどき|': ['sometimes'],
+ 'あまり|': ['not much; not often', 'only with a negative'], 'ぜんぜん|': ['not at all; never', 'only with a negative'],
+ 'ちょっと|': ['a little', 'also a polite “no”: それは ちょっと…'],
+ // Lesson 4
+ 'にちようび|日曜日': ['Sunday', '日 — sun'], 'げつようび|月曜日': ['Monday', '月 — moon'], 'かようび|火曜日': ['Tuesday', '火 — fire'],
+ 'すいようび|水曜日': ['Wednesday', '水 — water'], 'もくようび|木曜日': ['Thursday', '木 — tree'], 'きんようび|金曜日': ['Friday', '金 — gold'],
+ 'どようび|土曜日': ['Saturday', '土 — earth'],
+ 'おととい|': ['the day before yesterday', 'not to be confused with おととし'], 'きのう|昨日': ['yesterday'], 'きょう|今日': ['today'],
+ 'あした|明日': ['tomorrow'], 'あさって|': ['the day after tomorrow'], 'にしゅうかんまえ|二週間前': ['two weeks ago'],
+ 'せんしゅう|先週': ['last week', 'せん = last'], 'こんしゅう|今週': ['this week', 'こん = this'], 'らいしゅう|来週': ['next week', 'らい = next'],
+ 'さらいしゅう|再来週': ['the week after next', 'さらい = after next'], 'にかげつまえ|二か月前': ['two months ago'],
+ 'せんげつ|先月': ['last month'], 'こんげつ|今月': ['this month'], 'らいげつ|来月': ['next month'], 'さらいげつ|再来月': ['the month after next'],
+ 'おととし|': ['the year before last', 'not to be confused with おととい'], 'きょねん|去年': ['last year', 'not せんねん!'],
+ 'ことし|今年': ['this year', 'not こんねん!'], 'らいねん|来年': ['next year'], 'さらいねん|再来年': ['the year after next'],
+ 'ある|': ['there is (things)', 'group 1: あります'], 'いる|': ['there is (people, animals)', 'group 2: います'],
+ 'かう|買う': ['to buy', 'group 1: かいます'], 'まつ|待つ': ['to wait', 'group 1: まちます'], 'とる|撮る': ['to take (a picture)', 'しゃしんを とります'],
+ 'たくさん|': ['many; a lot'], '〜じかん|〜時間': ['… hours (duration)', 'いちじかん — one hour, no particle'],
+ 'ぐらい|': ['about; approximately', 'さんじかんぐらい — about three hours'], 'まえ|前': ['in front of', 'ホテルの まえ — in front of the hotel'],
+ // Lesson 5
+ 'たべもの|食べ物': ['food'], 'のみもの|飲み物': ['drink'], 'くだもの|果物': ['fruit'], 'やすみ|休み': ['holiday; day off'],
+ 'りょこう|旅行': ['travel; trip'], 'うみ|海': ['sea'], 'サーフィン|': ['surfing'], 'おみやげ|お土産': ['souvenir'], 'バス|': ['bus'],
+ 'てんき|天気': ['weather'], 'しゅくだい|宿題': ['homework'], 'テスト|': ['test; exam'], 'たんじょうび|誕生日': ['birthday'],
+ 'へや|部屋': ['room'], 'ぼく|僕': ['I (used by men)'], 'Ｌサイズ|': ['size L'],
+ 'あたらしい|新しい': ['new'], 'ふるい|古い': ['old (things)', 'only for things, not people'], 'あつい|暑い': ['hot (weather)'],
+ 'さむい|寒い': ['cold (weather)'], 'あつい|熱い': ['hot (an object)', 'tea, soup — 熱い'], 'いそがしい|忙しい': ['busy'],
+ 'おおきい|大きい': ['large'], 'ちいさい|小さい': ['small'], 'おもしろい|面白い': ['interesting; funny'], 'つまらない|': ['boring'],
+ 'やさしい|': ['easy; kind'], 'むずかしい|難しい': ['difficult'], 'かっこいい|': ['good-looking; cool', 'like いい: かっこよくない'],
+ 'こわい|怖い': ['frightening'], 'かわいい|': ['cute'], 'たのしい|楽しい': ['fun'], 'やすい|安い': ['inexpensive; cheap'],
+ 'たかい|高い': ['expensive; high'], 'いい|': ['good', 'exception: よくない, よかった'], 'おいしい|': ['delicious'],
+ 'すき|好き': ['fond of; to like'], 'きらい|嫌い': ['disgusted with; to dislike', 'ends in い, but it is a な-adjective'],
+ 'だいすき|大好き': ['very fond of; to love'], 'だいきらい|大嫌い': ['to hate'],
+ 'きれい|': ['beautiful; clean', 'ends in い, but it is a な-adjective: きれいな へや'], 'げんき|元気': ['healthy; energetic'],
+ 'しずか|静か': ['quiet'], 'にぎやか|': ['lively'], 'ひま|暇': ['not busy; free (time)'],
+ 'およぐ|泳ぐ': ['to swim', 'う · うみで およぎます'], 'きく|聞く': ['to ask; to listen', 'せんせいに ききます · おんがくを ききます'],
+ 'のる|乗る': ['to ride; to board', 'バスに のります (not を!)'], 'やる|': ['to do', 'サーフィンを やります'], 'でかける|出かける': ['to go out', 'る-verb'],
+ 'いっしょに|一緒に': ['together'], 'すごく|': ['extremely (casual)'], 'とても|': ['very'], 'だいじょうぶ|大丈夫': ['it’s okay; not to worry'],
+ 'どんな|': ['what kind of …'], '〜まい|〜枚': ['counter for flat objects'], '〜さつ|〜冊': ['counter for books'],
+ 'えいが|映画': ['movie', 'おもしろい えいが — an interesting movie'], 'しゃしん|写真': ['picture; photograph', 'しゃしんを とります — to take pictures'],
+ 'まち|町': ['town; city'], 'さかな|魚': ['fish'], 'としょかん|図書館': ['library'], 'カフェ|': ['café'], 'コーヒー|': ['coffee'],
+ 'がくしょく|学食': ['school cafeteria'], 'ケーキ|': ['cake'], 'かぞく|家族': ['family'], 'そと|外': ['outside'], 'きみ|君': ['you (casual)'],
+ 'ほんとう|本当': ['true; really', 'ほんとう？ — really?'], 'うん|': ['uh-huh; yes (casual)'], 'よかった|': ['I’m glad!; what a relief!', 'past tense of いい'],
+ 'そろそろ|': ['it’s about time to …', 'そろそろ ねましょうか — time for bed']
+};
+// numbers keep their digits; their notes say which other readings exist
+const NUM_NOTES = { 'ゼロ|': 'also れい', 'よん|': 'also し; sometimes よ', 'なな|': 'also しち', 'きゅう|': 'also く',
+  'じゅうよん|': 'also じゅうし', 'じゅうなな|': 'also じゅうしち', 'じゅうきゅう|': 'also じゅうく' };
+const ord = n => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
+const DATE_NOTES = { 4: 'not to be confused with ようか (8th)', 8: 'not to be confused with よっか (4th)', 14: '4 → よっか', 17: '7 → しち',
+  19: '9 → く', 20: 'a special word', 24: '4 → よっか', 27: '7 → しち', 29: '9 → く' };
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTH_NOTES = { 4: 'not よんがつ!', 7: 'not ながつ!', 9: 'not きゅうがつ!' };
+return {
+  // gloss and note of one word; null when the word has no English entry yet
+  word(w) {
+    if (W[w.id]) return W[w.id];
+    if (w.topic === 'num1' || w.topic === 'num2' || w.topic === 'num3') return [w.ru, NUM_NOTES[w.id]];
+    if (w.topic === 'dates') { const n = parseInt(w.kanji, 10); return [`the ${ord(n)} (of the month)`, DATE_NOTES[n]]; }
+    if (w.topic === 'months') { const n = ['一','二','三','四','五','六','七','八','九','十','十一','十二'].indexOf(w.kanji.replace('月', '')) + 1; return [MONTHS[n - 1], MONTH_NOTES[n]]; }
+    return null;
+  },
+  lessons: {
+    l0: { en: ['Basics', 'Numbers 0 to 100'], ja: ['きほん', 'すうじ 0〜100'] },
+    l1: { en: ['Lesson 1', 'Meeting people: who you are, where you’re from'], ja: ['だい1か', 'じこしょうかい'] },
+    l3: { en: ['Lesson 3', 'Verbs, particles, time'], ja: ['だい3か', 'どうし・じょし・じかん'] },
+    l4: { en: ['Lesson 4', 'There is, past tense, dates'], ja: ['だい4か', 'あります・かこ・ひづけ'] },
+    l5: { en: ['Lesson 5', 'Adjectives'], ja: ['だい5か', 'けいようし'] }
+  },
+  topics: {
+    num1: ['Numbers 0–10', 'すうじ 0〜10'], num2: ['Numbers 11–20', 'すうじ 11〜20'], num3: ['Tens up to 100', '30〜100'],
+    l1school: ['School', 'がっこう'], l1person: ['People', 'ひと'], l1time: ['Time', 'じかん'], l1other: ['Other words', 'そのほか'],
+    l1expr: ['Expressions', 'ひょうげん'], l1country: ['Countries', 'くに'], l1major: ['Majors', 'せんこう'], l1job: ['Occupations', 'しごと'], l1family: ['Family', 'かぞく'],
+    l3verbs: ['Verbs', 'どうし'], l3adv: ['Frequency adverbs', 'ひんどの ふくし'],
+    week: ['Days of the week', 'ようび'], dates: ['Days of the month', 'ひづけ'], months: ['Months', 'つき'], time: ['Time words', 'ときの ことば'],
+    l4words: ['Words from the grammar', 'ぶんぽうの ことば'],
+    nouns: ['Nouns', 'めいし'], iadj: ['い-adjectives', 'い けいようし'], naadj: ['な-adjectives', 'な けいようし'], verbs: ['Verbs', 'どうし'], adv: ['Adverbs and counters', 'ふくし・じょすうし'], l5more: ['From the slides: movies, cafés, family', 'スライドの ことば']
+  },
+  drills: {
+    l3conj: ['Verb forms: 〜ます and 〜ません', 'どうし：〜ます・〜ません'], l3part: ['Particles を で に へ', 'じょし を で に へ'],
+    l3time: ['Time: is に needed?', 'じかんと に'], l3order: ['Word order', 'ごじゅん'],
+    l4aru: ['あります or います', 'あります・います'], l4past: ['Past: 〜ました and 〜ませんでした', 'かこけい'],
+    l4part: ['も, と, で and duration', 'も・と・で'], l4order: ['Build the sentence', 'ぶんを つくる'],
+    l5pres: ['Adjectives: negative', 'けいようし：ひてい'], l5past: ['Adjectives: past tense', 'けいようし：かこ'], l5sent: ['Translate the sentence', 'ほんやく'],
+    l5adjn: ['Adjective + noun', 'けいようし＋めいし'], l5suki: ['すき and きらい', 'すき・きらい'],
+    l5let: ['Let’s: 〜ましょう and 〜ませんか', 'さそう：〜ましょう・〜ませんか'], l5order2: ['Build the sentence: new topics', 'ぶんを つくる 2']
+  }
+};
+})();
+// Interface text in Russian, English and Japanese. A value is a string, or a function of the numbers and names it shows.
+// Japanese is written mostly in kana, for a learner at Genki I level.
+window.TANGO_I18N = (() => {
+const ruP = (n, a, b, c) => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; };
+const enP = (n, a, b) => n === 1 ? a : b;
+const MON = {
+  ru: ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'],
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+};
+const WDS = { ru: ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'], en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], ja: ['日', '月', '火', '水', '木', '金', '土'] };
+
+const ru = {
+  langName: 'Русский',
+  // tabs and static parts
+  tabs: 'Разделы', tabHome: 'Главная', tabDict: 'Словарь', tabProfile: 'Профиль',
+  streakChip: 'Дней подряд', totalXp: 'Всего XP', today: 'Сегодня', mistTitle: 'Работа над ошибками', lessons: 'Уроки',
+  profile: 'Профиль', last7: 'Последние 7 дней', xpByDay: 'Опыт по дням', period: 'Период', d7: '7 дн.', d14: '14 дн.', d30: '30 дн.',
+  xpKey: 'пунктир — цель дня, 30 XP', settings: 'Настройки', curTitle: 'Новые слова брать из урока', curAria: 'Урок для новых слов',
+  curNote: 'Повторение идёт по всем урокам, а новые слова добавляются только из выбранного.',
+  language: 'Язык', langNote: 'Меняет интерфейс и переводы слов. Конспекты и упражнения на грамматику остаются на русском.',
+  kanji: 'Показывать кандзи', sound: 'Звуки и озвучка слов', on: 'вкл', off: 'выкл', sync: 'Синхронизация',
+  howTitle: 'Как работает повторение',
+  howText: 'Слово возвращается через 1, 3, 7, 14, 30 и 60 дней. Каждый верный ответ в срок отодвигает следующий повтор, ошибка возвращает слово в начало. Тема засчитывается, если пройти все её слова без единой ошибки.',
+  reset: 'Сбросить прогресс', toLessons: 'К списку уроков', notes: 'Конспект', closeNotes: 'Закрыть конспект', back: 'Назад', next: 'Дальше',
+  stHint: 'Тапни справа — дальше, слева — назад', dict: 'Словарь', searchPh: 'Поиск: かな, 漢字, romaji или перевод', searchAria: 'Поиск по словарю',
+  filterAria: 'Фильтр', quitAria: 'Выйти из урока', check: 'Проверить', again: 'Ещё урок', home: 'На главную', start: 'Начать',
+  // words and levels
+  lvNewWord: 'новое слово', lvNewTask: 'новое задание', lv: ['на повторении', 'учится', 'учится', 'выучено'],
+  dueToday: 'повторить сегодня', dueTomorrow: 'повтор завтра', dueIn: d => `повтор через ${d} ${ruP(d, 'день', 'дня', 'дней')}`,
+  levelAria: n => `уровень ${n} из 3`, say: 'Произнести', passedAria: 'пройдено без ошибок',
+  syncLocal: 'Прогресс хранится только на этом устройстве', syncLoading: 'Синхронизация…', syncSaving: 'Сохраняю в облако…',
+  syncOk: 'Синхронизировано между твоими устройствами', syncStale: 'Нет связи с облаком. Прогресс сохранён на устройстве и отправится позже',
+  syncError: 'Синхронизация недоступна. Прогресс сохранён на этом устройстве',
+  // home
+  streakAria: n => `Серия: ${n} ${ruP(n, 'день', 'дня', 'дней')}`,
+  nowDue: n => `${n} ${ruP(n, 'слово ждёт', 'слова ждут', 'слов ждут')} повторения`, nowNew: name => `Новые слова: ${name}`, nowDone: 'На сегодня всё повторено',
+  subDueNew: (name, n) => `Потом новые слова из раздела «${name}»: осталось ${n}.`, subDueNoNew: 'Новых слов в выбранном уроке не осталось.',
+  subNew: (sub, n) => `${sub}. Осталось ${n} ${ruP(n, 'новое слово', 'новых слова', 'новых слов')}.`,
+  subTomorrow: n => `Завтра вернётся ${n} ${ruP(n, 'слово', 'слова', 'слов')}. Можно потренироваться или выбрать другой урок в профиле.`,
+  subFree: 'Можно потренироваться или выбрать другой урок в профиле.',
+  btnReview: 'Повторить', btnLearn: 'Учить новые слова', btnFree: 'Свободная тренировка',
+  mistN: n => `${n} ${ruP(n, 'слово', 'слова', 'слов')} с ошибками`,
+  // profile
+  goalDone: 'Цель на сегодня выполнена', streakN: n => `Серия: ${n} ${ruP(n, 'день', 'дня', 'дней')}`, goalStart: 'Начни серию сегодня',
+  goalSubDone: tx => `Сегодня ${tx} XP. Можно продолжать.`, goalLeft: n => `Ещё ${n} XP до цели дня`, goalSubStart: 'Пройди один урок, чтобы продлить серию',
+  statStreak: 'Серия', statTopics: 'Темы', days: n => `${n} ${ruP(n, 'день', 'дня', 'дн.')}`, newN: n => `новых: ${n}`,
+  learnedOf: (a, b) => `Выучено ${a} из ${b} слов`, lgDone: 'выучено', lgPart: 'учится', lgNew: 'новые',
+  xpSum: (r, total, avg, met) => ['За ', `${r} ${ruP(r, 'день', 'дня', 'дней')}`, ': ', [total + ' XP'], ' · в среднем ', [String(avg)], ' в день · цель выполнена ', [`${met} ${ruP(met, 'раз', 'раза', 'раз')}`]],
+  date: d => `${WDS.ru[d.getDay()]}, ${d.getDate()} ${MON.ru[d.getMonth()]}`, dateShort: d => `${d.getDate()} ${MON.ru[d.getMonth()]}`, todayShort: 'сег.', todayWord: 'сегодня',
+  // streak screen
+  cont: 'Продолжить', streakAriaDlg: 'Серия продлена', streakStarted: 'Серия началась!', streakExtended: 'Серия продлена!',
+  streakStartedSub: 'Первый день есть. Загляни завтра, и серия вырастет.',
+  streakExtendedSub: n => `${n} ${ruP(n, 'день', 'дня', 'дней')} подряд. Возвращайся завтра, чтобы не потерять её.`,
+  // lesson page
+  unitReview: n => `Повторить ${n} ${ruP(n, 'слово', 'слова', 'слов')}`, unitLearn: 'Учить новые слова урока', unitTrain: 'Тренировать слова урока',
+  unitMeta: (due, part, fresh) => `Повторить: ${due} · учится: ${part} · новых: ${fresh}`, byTopic: 'Слова по темам · выучено / всего',
+  dueBadge: n => `повторить: ${n}`, topicAria: (name, a, b, due, done) => `${name}: выучено ${a} из ${b}` + (due ? `, повторить ${due}` : '') + (done ? ', пройдена без ошибок' : ''),
+  grammar: 'Грамматика', notesBtn: 'Конспект урока', notesN: n => `${n} ${ruP(n, 'тема', 'темы', 'тем')}`,
+  onlyWords: 'В этом уроке пока только слова. Пришли конспект, и здесь появится грамматика.',
+  // notes as stories
+  notesOf: name => `${name} · конспект`, reread: 'Перечитать с начала', toDrills: 'К упражнениям', backUnit: 'Назад к уроку', notesDone: 'Конспект пройден',
+  notesDoneDrills: n => `Теперь закрепи: в уроке ${n} ${ruP(n, 'упражнение', 'упражнения', 'упражнений')} на эту грамматику.`, notesDoneWords: 'Можно вернуться к словам урока.',
+  topicOf: (i, n) => `Тема ${i} из ${n}`, contd: 'продолжение', end: 'Конец', screenOf: (i, n) => `Экран ${i} из ${n}`,
+  // dictionary
+  fAll: 'Все', fDue: 'Повторить', fNew: 'Новые', fLearn: 'Учатся', fDone: 'Выучены', fMis: 'Ошибки', allLessons: 'Все уроки',
+  noFound: 'Ничего не найдено. Попробуй другое написание.', noWords: 'В этом разделе пока нет слов.',
+  train: (a, b) => `Тренировать: ${a} из ${b}`, pickLesson: 'Слова какого урока показать', wordsN: n => `${n} ${ruP(n, 'слово', 'слова', 'слов')}`,
+  // lessons
+  tReview: 'Повторение', tFree: 'Свободная тренировка', tMist: 'Ошибки', tDict: 'слова из словаря',
+  count: (a, b) => `Верно ${a} из ${b}`, combo: n => `Серия ×${n} · +15 XP за ответ`, retry: 'Повторим ошибку',
+  qJp: 'Как переводится?', qRu: 'Как сказать по-японски?', qKanji: 'Как это читается?', qBuild: 'Собери слово из слогов', nothing: 'ничего',
+  newWord: 'Новое слово', introN: (i, n) => `Новое слово ${i} из ${n}. Запомни и нажми «Понятно».`, gotIt: 'Понятно',
+  qMatch: 'Найди пары', matchHint: 'Нажми слово слева, потом его перевод справа',
+  taskDone: ' · задание освоено!', wordDone: ' · слово выучено!', levelUp: b => ` · уровень ${b} из 3`,
+  praise: ['Отлично!', 'Верно!', 'すごい！', 'Так держать!', 'Правильно!', 'いいね！'], rightIs: 'Правильно: ', wrong: 'Неверно',
+  // result
+  topicAgain: name => `Тема «${name}» снова без ошибок`, topicPassed: name => `Тема «${name}» пройдена!`,
+  topicAgainText: 'Отличная проверка: тема уже засчитана и остаётся пройденной.', topicPassedText: 'Все слова темы без единой ошибки. В уроке она теперь отмечена как пройденная.',
+  withErrors: 'Урок пройден, но с ошибками', withErrorsText: (n, kept) => `Ошибок: ${n}. Чтобы тема засчиталась, пройди её целиком без единой ошибки.` + (kept ? ' Отметка «пройдено» у темы сохраняется.' : ''),
+  noErrors: 'Ни одной ошибки!', drillDone: 'Упражнение пройдено', lessonDone: 'Урок пройден',
+  drillText: 'Задания с ошибками вернутся в следующий раз первыми.', lessonText: 'Слова вернутся на повторение по расписанию. Слова с ошибками придут уже сегодня.',
+  livesOut: 'Жизни закончились', livesOutText: 'Ничего страшного. Ошибки сохранены, повтори их ещё раз.',
+  accuracy: 'Точность', progressOf: name => `Прогресс: ${name}`, progressWords: 'Прогресс слов урока',
+  gramSum: (m, l) => `Продвинулось заданий: ${m} · освоено: ${l}`, wordSum: (n, m, l) => `Новых слов: ${n} · продвинулось: ${m} · выучено: ${l}`,
+  tasks: 'Задания', lessonWords: 'Слова урока', backDict: 'Назад в словарь',
+  quitTitle: 'Выйти из урока?', quitText: 'XP за этот урок не начислится. Ответы уже сохранены.', quitYes: 'Выйти', quitNo: 'Продолжить урок',
+  resetTitle: 'Сбросить прогресс?', resetText: 'Серия, XP, выученные слова и пройденные темы удалятся на всех твоих устройствах.', resetYes: 'Сбросить', resetNo: 'Отмена'
+};
+
+const en = {
+  langName: 'English',
+  tabs: 'Sections', tabHome: 'Home', tabDict: 'Dictionary', tabProfile: 'Profile',
+  streakChip: 'Day streak', totalXp: 'Total XP', today: 'Today', mistTitle: 'Fix your mistakes', lessons: 'Lessons',
+  profile: 'Profile', last7: 'Last 7 days', xpByDay: 'XP by day', period: 'Period', d7: '7 d', d14: '14 d', d30: '30 d',
+  xpKey: 'dashed line — daily goal, 30 XP', settings: 'Settings', curTitle: 'Take new words from', curAria: 'Lesson for new words',
+  curNote: 'Reviews cover every lesson; new words come only from the one you pick.',
+  language: 'Language', langNote: 'Changes the interface and word meanings. Grammar notes and grammar exercises stay in Russian.',
+  kanji: 'Show kanji', sound: 'Sounds and word audio', on: 'on', off: 'off', sync: 'Sync',
+  howTitle: 'How reviews work',
+  howText: 'A word comes back after 1, 3, 7, 14, 30 and 60 days. Each right answer on time pushes the next review further out; a mistake sends the word back to the start. A topic counts as passed when you get through all its words without a single mistake.',
+  reset: 'Reset progress', toLessons: 'Back to lessons', notes: 'Notes', closeNotes: 'Close the notes', back: 'Back', next: 'Next',
+  stHint: 'Tap right for next, left to go back', dict: 'Dictionary', searchPh: 'Search: かな, 漢字, romaji or meaning', searchAria: 'Search the dictionary',
+  filterAria: 'Filter', quitAria: 'Quit the lesson', check: 'Check', again: 'Another lesson', home: 'Home', start: 'Start',
+  lvNewWord: 'new word', lvNewTask: 'new task', lv: ['in review', 'learning', 'learning', 'learned'],
+  dueToday: 'review today', dueTomorrow: 'review tomorrow', dueIn: d => `review in ${d} ${enP(d, 'day', 'days')}`,
+  levelAria: n => `level ${n} of 3`, say: 'Play audio', passedAria: 'passed without mistakes',
+  syncLocal: 'Progress is kept on this device only', syncLoading: 'Syncing…', syncSaving: 'Saving to the cloud…',
+  syncOk: 'In sync across your devices', syncStale: 'No connection to the cloud. Progress is saved on this device and will be sent later',
+  syncError: 'Sync is unavailable. Progress is saved on this device',
+  streakAria: n => `Streak: ${n} ${enP(n, 'day', 'days')}`,
+  nowDue: n => `${n} ${enP(n, 'word is', 'words are')} due for review`, nowNew: name => `New words: ${name}`, nowDone: 'All reviews done for today',
+  subDueNew: (name, n) => `Then new words from “${name}”: ${n} left.`, subDueNoNew: 'No new words left in the chosen lesson.',
+  subNew: (sub, n) => `${sub}. ${n} new ${enP(n, 'word', 'words')} left.`,
+  subTomorrow: n => `${n} ${enP(n, 'word comes', 'words come')} back tomorrow. You can practice or pick another lesson in your profile.`,
+  subFree: 'You can practice or pick another lesson in your profile.',
+  btnReview: 'Review', btnLearn: 'Learn new words', btnFree: 'Free practice',
+  mistN: n => `${n} ${enP(n, 'word', 'words')} with mistakes`,
+  goalDone: 'Today’s goal is done', streakN: n => `Streak: ${n} ${enP(n, 'day', 'days')}`, goalStart: 'Start a streak today',
+  goalSubDone: tx => `${tx} XP today. Keep going if you like.`, goalLeft: n => `${n} XP to go for today’s goal`, goalSubStart: 'Finish one lesson to keep your streak',
+  statStreak: 'Streak', statTopics: 'Topics', days: n => `${n} ${enP(n, 'day', 'days')}`, newN: n => `new: ${n}`,
+  learnedOf: (a, b) => `${a} of ${b} words learned`, lgDone: 'learned', lgPart: 'learning', lgNew: 'new',
+  xpSum: (r, total, avg, met) => ['Last ', `${r} days`, ': ', [total + ' XP'], ' · ', [String(avg)], ' a day on average · goal met ', [`${met} ${enP(met, 'time', 'times')}`]],
+  date: d => `${WDS.en[d.getDay()]}, ${MON.en[d.getMonth()]} ${d.getDate()}`, dateShort: d => `${MON.en[d.getMonth()]} ${d.getDate()}`, todayShort: 'today', todayWord: 'today',
+  cont: 'Continue', streakAriaDlg: 'Streak extended', streakStarted: 'Your streak has started!', streakExtended: 'Streak extended!',
+  streakStartedSub: 'Day one is done. Come back tomorrow and it will grow.',
+  streakExtendedSub: n => `${n} days in a row. Come back tomorrow to keep it going.`,
+  unitReview: n => `Review ${n} ${enP(n, 'word', 'words')}`, unitLearn: 'Learn new words', unitTrain: 'Practice the words',
+  unitMeta: (due, part, fresh) => `Due: ${due} · learning: ${part} · new: ${fresh}`, byTopic: 'Words by topic · learned / total',
+  dueBadge: n => `due: ${n}`, topicAria: (name, a, b, due, done) => `${name}: ${a} of ${b} learned` + (due ? `, ${due} due` : '') + (done ? ', passed without mistakes' : ''),
+  grammar: 'Grammar', notesBtn: 'Lesson notes', notesN: n => `${n} ${enP(n, 'topic', 'topics')} · in Russian`,
+  onlyWords: 'This lesson has words only so far. Send the notes and grammar will appear here.',
+  notesOf: name => `${name} · notes`, reread: 'Read again', toDrills: 'Go to exercises', backUnit: 'Back to the lesson', notesDone: 'Notes finished',
+  notesDoneDrills: n => `Now practice it: this lesson has ${n} grammar ${enP(n, 'exercise', 'exercises')}.`, notesDoneWords: 'You can go back to the lesson’s words.',
+  topicOf: (i, n) => `Topic ${i} of ${n}`, contd: 'continued', end: 'The end', screenOf: (i, n) => `Screen ${i} of ${n}`,
+  fAll: 'All', fDue: 'Due', fNew: 'New', fLearn: 'Learning', fDone: 'Learned', fMis: 'Mistakes', allLessons: 'All lessons',
+  noFound: 'Nothing found. Try another spelling.', noWords: 'No words here yet.',
+  train: (a, b) => `Practice: ${a} of ${b}`, pickLesson: 'Show words from which lesson', wordsN: n => `${n} ${enP(n, 'word', 'words')}`,
+  tReview: 'Review', tFree: 'Free practice', tMist: 'Mistakes', tDict: 'dictionary words',
+  count: (a, b) => `${a} of ${b} right`, combo: n => `Combo ×${n} · +15 XP per answer`, retry: 'Let’s retry a mistake',
+  qJp: 'What does it mean?', qRu: 'How do you say it in Japanese?', qKanji: 'How is this read?', qBuild: 'Build the word from syllables', nothing: 'nothing',
+  newWord: 'New word', introN: (i, n) => `New word ${i} of ${n}. Remember it and tap “Got it”.`, gotIt: 'Got it',
+  qMatch: 'Match the pairs', matchHint: 'Tap a word on the left, then its meaning on the right',
+  taskDone: ' · task mastered!', wordDone: ' · word learned!', levelUp: b => ` · level ${b} of 3`,
+  praise: ['Great!', 'Correct!', 'すごい！', 'Keep it up!', 'Nice!', 'いいね！'], rightIs: 'Correct answer: ', wrong: 'Incorrect',
+  topicAgain: name => `“${name}” again with no mistakes`, topicPassed: name => `Topic “${name}” passed!`,
+  topicAgainText: 'Nice check: the topic is already passed and stays that way.', topicPassedText: 'Every word in the topic with no mistakes. It is now marked as passed in the lesson.',
+  withErrors: 'Lesson done, with mistakes', withErrorsText: (n, kept) => `Mistakes: ${n}. To pass the topic, get through all of it without a single mistake.` + (kept ? ' The topic stays marked as passed.' : ''),
+  noErrors: 'Not a single mistake!', drillDone: 'Exercise done', lessonDone: 'Lesson done',
+  drillText: 'Tasks you missed will come first next time.', lessonText: 'Words come back for review on schedule. Words you missed come back today.',
+  livesOut: 'Out of hearts', livesOutText: 'No worries. Your mistakes are saved; go over them once more.',
+  accuracy: 'Accuracy', progressOf: name => `Progress: ${name}`, progressWords: 'Progress of these words',
+  gramSum: (m, l) => `Tasks moved up: ${m} · mastered: ${l}`, wordSum: (n, m, l) => `New words: ${n} · moved up: ${m} · learned: ${l}`,
+  tasks: 'Tasks', lessonWords: 'Words in this lesson', backDict: 'Back to the dictionary',
+  quitTitle: 'Quit the lesson?', quitText: 'You won’t get XP for this lesson. Your answers are already saved.', quitYes: 'Quit', quitNo: 'Keep going',
+  resetTitle: 'Reset progress?', resetText: 'Your streak, XP, learned words and passed topics will be deleted on all your devices.', resetYes: 'Reset', resetNo: 'Cancel'
+};
+
+const ja = {
+  langName: '日本語',
+  tabs: 'メニュー', tabHome: 'ホーム', tabDict: 'じしょ', tabProfile: 'プロフィール',
+  streakChip: 'れんぞく にっすう', totalXp: 'ごうけい XP', today: 'きょう', mistTitle: 'まちがいの ふくしゅう', lessons: 'レッスン',
+  profile: 'プロフィール', last7: 'さいきんの 7日', xpByDay: 'まいにちの XP', period: 'きかん', d7: '7日', d14: '14日', d30: '30日',
+  xpKey: 'てんせん：1日の もくひょう 30 XP', settings: 'せってい', curTitle: 'あたらしい ことばの レッスン', curAria: 'あたらしい ことばの レッスン',
+  curNote: 'ふくしゅうは ぜんぶの レッスンから。あたらしい ことばは えらんだ レッスンだけから。',
+  language: 'げんご', langNote: 'インターフェースと ことばの いみが かわります（いみは えいごで）。ぶんぽうの ノートと れんしゅうは ロシアごの まま。',
+  kanji: 'かんじを ひょうじ', sound: 'おとと よみあげ', on: 'オン', off: 'オフ', sync: 'どうき',
+  howTitle: 'ふくしゅうの しくみ',
+  howText: 'ことばは 1・3・7・14・30・60日ごに もどって きます。ただしく こたえると つぎの ふくしゅうが のびます。まちがえると さいしょに もどります。トピックの ことばを ぜんぶ まちがえずに こたえると、トピック クリアです。',
+  reset: 'しんちょくを リセット', toLessons: 'レッスンの リストへ', notes: 'ノート', closeNotes: 'ノートを とじる', back: 'もどる', next: 'つぎへ',
+  stHint: 'みぎを タップで つぎへ、ひだりで もどる', dict: 'じしょ', searchPh: 'さがす：かな・漢字・romaji・いみ', searchAria: 'じしょを さがす',
+  filterAria: 'フィルター', quitAria: 'レッスンを やめる', check: 'チェック', again: 'もう いっかい', home: 'ホームへ', start: 'はじめる',
+  lvNewWord: 'あたらしい ことば', lvNewTask: 'あたらしい もんだい', lv: ['ふくしゅうちゅう', 'がくしゅうちゅう', 'がくしゅうちゅう', 'おぼえた'],
+  dueToday: 'きょう ふくしゅう', dueTomorrow: 'あした ふくしゅう', dueIn: d => `${d}日ごに ふくしゅう`,
+  levelAria: n => `レベル ${n}/3`, say: 'よみあげ', passedAria: 'まちがいなしで クリア',
+  syncLocal: 'しんちょくは この デバイスだけに あります', syncLoading: 'どうきちゅう…', syncSaving: 'クラウドに ほぞんちゅう…',
+  syncOk: 'ぜんぶの デバイスで どうき ずみ', syncStale: 'クラウドに つながりません。しんちょくは デバイスに ほぞんして、あとで おくります',
+  syncError: 'どうきが つかえません。しんちょくは この デバイスに ほぞん されています',
+  streakAria: n => `れんぞく ${n}日`,
+  nowDue: n => `ふくしゅうする ことば：${n}`, nowNew: name => `あたらしい ことば：${name}`, nowDone: 'きょうの ふくしゅうは おわりました',
+  subDueNew: (name, n) => `そのあと「${name}」の あたらしい ことば：のこり ${n}。`, subDueNoNew: 'えらんだ レッスンに あたらしい ことばは もう ありません。',
+  subNew: (sub, n) => `${sub}。あたらしい ことば：のこり ${n}。`,
+  subTomorrow: n => `あした ${n}この ことばが もどります。れんしゅう するか、プロフィールで ほかの レッスンを えらべます。`,
+  subFree: 'れんしゅう するか、プロフィールで ほかの レッスンを えらべます。',
+  btnReview: 'ふくしゅう する', btnLearn: 'あたらしい ことばを まなぶ', btnFree: 'じゆう れんしゅう',
+  mistN: n => `まちがえた ことば：${n}`,
+  goalDone: 'きょうの もくひょう クリア', streakN: n => `れんぞく ${n}日`, goalStart: 'きょうから はじめよう',
+  goalSubDone: tx => `きょう ${tx} XP。まだ つづけられます。`, goalLeft: n => `もくひょうまで あと ${n} XP`, goalSubStart: 'レッスンを ひとつ おわらせて れんぞくを のばそう',
+  statStreak: 'れんぞく', statTopics: 'トピック', days: n => `${n}日`, newN: n => `あたらしい：${n}`,
+  learnedOf: (a, b) => `おぼえた ことば ${a} / ${b}`, lgDone: 'おぼえた', lgPart: 'がくしゅうちゅう', lgNew: 'あたらしい',
+  xpSum: (r, total, avg, met) => ['さいきん ', `${r}日`, '：', [total + ' XP'], ' · 1日 へいきん ', [String(avg)], ' · もくひょう たっせい ', [`${met}かい`]],
+  date: d => `${d.getMonth() + 1}月${d.getDate()}日(${WDS.ja[d.getDay()]})`, dateShort: d => `${d.getMonth() + 1}月${d.getDate()}日`, todayShort: 'きょう', todayWord: 'きょう',
+  cont: 'つづける', streakAriaDlg: 'れんぞく のびた', streakStarted: 'れんぞく スタート！', streakExtended: 'れんぞく のびた！',
+  streakStartedSub: '1日め クリア。あしたも きて ください。',
+  streakExtendedSub: n => `${n}日 れんぞく。あしたも きて、とぎれないように しよう。`,
+  unitReview: n => `ふくしゅう：${n}`, unitLearn: 'あたらしい ことばを まなぶ', unitTrain: 'ことばを れんしゅう',
+  unitMeta: (due, part, fresh) => `ふくしゅう：${due} · がくしゅうちゅう：${part} · あたらしい：${fresh}`, byTopic: 'トピックべつの ことば · おぼえた / ぜんぶ',
+  dueBadge: n => `ふくしゅう：${n}`, topicAria: (name, a, b, due, done) => `${name}：おぼえた ${a} / ${b}` + (due ? `、ふくしゅう ${due}` : '') + (done ? '、クリア' : ''),
+  grammar: 'ぶんぽう', notesBtn: 'レッスンの ノート', notesN: n => `${n} トピック · ロシアご`,
+  onlyWords: 'この レッスンは まだ ことばだけです。',
+  notesOf: name => `${name} · ノート`, reread: 'さいしょから よむ', toDrills: 'れんしゅうへ', backUnit: 'レッスンへ もどる', notesDone: 'ノート おわり',
+  notesDoneDrills: n => `つぎは れんしゅう：ぶんぽうの れんしゅうが ${n}こ あります。`, notesDoneWords: 'レッスンの ことばに もどれます。',
+  topicOf: (i, n) => `トピック ${i} / ${n}`, contd: 'つづき', end: 'おわり', screenOf: (i, n) => `${i} / ${n}`,
+  fAll: 'ぜんぶ', fDue: 'ふくしゅう', fNew: 'あたらしい', fLearn: 'がくしゅうちゅう', fDone: 'おぼえた', fMis: 'まちがい', allLessons: 'ぜんぶの レッスン',
+  noFound: 'みつかりません。ほかの かきかたで さがして ください。', noWords: 'ここには まだ ことばが ありません。',
+  train: (a, b) => `れんしゅう：${a} / ${b}`, pickLesson: 'どの レッスンの ことばを みますか', wordsN: n => `${n}ご`,
+  tReview: 'ふくしゅう', tFree: 'じゆう れんしゅう', tMist: 'まちがい', tDict: 'じしょの ことば',
+  count: (a, b) => `せいかい ${a} / ${b}`, combo: n => `コンボ ×${n} · こたえごとに +15 XP`, retry: 'まちがいを もう いちど',
+  qJp: 'いみは なんですか？', qRu: 'にほんごで なんと いいますか？', qKanji: 'なんと よみますか？', qBuild: 'もじを ならべて ことばを つくろう', nothing: 'なし',
+  newWord: 'あたらしい ことば', introN: (i, n) => `あたらしい ことば ${i} / ${n}。おぼえたら「わかった」を おして ください。`, gotIt: 'わかった',
+  qMatch: 'ペアを みつけよう', matchHint: 'ひだりの ことばを おして、みぎの いみを おして ください',
+  taskDone: ' · もんだい マスター！', wordDone: ' · ことばを おぼえた！', levelUp: b => ` · レベル ${b}/3`,
+  praise: ['すごい！', 'せいかい！', 'いいね！', 'そのちょうし！', 'ばっちり！', 'かんぺき！'], rightIs: 'せいかい：', wrong: 'ざんねん',
+  topicAgain: name => `「${name}」また まちがいなし`, topicPassed: name => `「${name}」クリア！`,
+  topicAgainText: 'いい チェックです。この トピックは もう クリア ずみです。', topicPassedText: 'トピックの ことばを ぜんぶ まちがえずに こたえました。レッスンで クリアと ひょうじ されます。',
+  withErrors: 'レッスン おわり（まちがい あり）', withErrorsText: (n, kept) => `まちがい：${n}。トピックを クリア するには、まちがえずに ぜんぶ こたえて ください。` + (kept ? ' クリアの しるしは そのままです。' : ''),
+  noErrors: 'まちがい ゼロ！', drillDone: 'れんしゅう おわり', lessonDone: 'レッスン おわり',
+  drillText: 'まちがえた もんだいは つぎに さいしょに でます。', lessonText: 'ことばは よていどおりに ふくしゅうに もどります。まちがえた ことばは きょう もどります。',
+  livesOut: 'ハートが なくなりました', livesOutText: 'だいじょうぶ。まちがいは ほぞん されています。もう いちど やって みよう。',
+  accuracy: 'せいかいりつ', progressOf: name => `しんちょく：${name}`, progressWords: 'この レッスンの しんちょく',
+  gramSum: (m, l) => `レベルアップ：${m} · マスター：${l}`, wordSum: (n, m, l) => `あたらしい ことば：${n} · レベルアップ：${m} · おぼえた：${l}`,
+  tasks: 'もんだい', lessonWords: 'この レッスンの ことば', backDict: 'じしょへ もどる',
+  quitTitle: 'レッスンを やめますか？', quitText: 'この レッスンの XPは もらえません。こたえは もう ほぞん されています。', quitYes: 'やめる', quitNo: 'つづける',
+  resetTitle: 'しんちょくを リセット しますか？', resetText: 'れんぞく・XP・おぼえた ことば・クリアした トピックが ぜんぶの デバイスから きえます。', resetYes: 'リセット', resetNo: 'キャンセル'
+};
+return { ru, en, ja };
+})();
+// Frozen word order of the first release (progress was keyed "topic:index" then). Used once, to carry old progress over. Never edit.
+window.TANGO_LEGACY_V1 = {"week":["にちようび|日曜日","げつようび|月曜日","かようび|火曜日","すいようび|水曜日","もくようび|木曜日","きんようび|金曜日","どようび|土曜日"],"dates":["ついたち|1日","ふつか|2日","みっか|3日","よっか|4日","いつか|5日","むいか|6日","なのか|7日","ようか|8日","ここのか|9日","とおか|10日","じゅういちにち|11日","じゅうににち|12日","じゅうさんにち|13日","じゅうよっか|14日","じゅうごにち|15日","じゅうろくにち|16日","じゅうしちにち|17日","じゅうはちにち|18日","じゅうくにち|19日","はつか|20日","にじゅういちにち|21日","にじゅうににち|22日","にじゅうさんにち|23日","にじゅうよっか|24日","にじゅうごにち|25日","にじゅうろくにち|26日","にじゅうしちにち|27日","にじゅうはちにち|28日","にじゅうくにち|29日","さんじゅうにち|30日","さんじゅういちにち|31日"],"months":["いちがつ|一月","にがつ|二月","さんがつ|三月","しがつ|四月","ごがつ|五月","ろくがつ|六月","しちがつ|七月","はちがつ|八月","くがつ|九月","じゅうがつ|十月","じゅういちがつ|十一月","じゅうにがつ|十二月"],"time":["おととい|","きのう|昨日","きょう|今日","あした|明日","あさって|","にしゅうかんまえ|二週間前","せんしゅう|先週","こんしゅう|今週","らいしゅう|来週","さらいしゅう|再来週","にかげつまえ|二か月前","せんげつ|先月","こんげつ|今月","らいげつ|来月","さらいげつ|再来月","おととし|","きょねん|去年","ことし|今年","らいねん|来年","さらいねん|再来年"],"nouns":["たべもの|食べ物","のみもの|飲み物","くだもの|果物","やすみ|休み","りょこう|旅行","うみ|海","サーフィン|","おみやげ|お土産","バス|","てんき|天気","しゅくだい|宿題","テスト|","たんじょうび|誕生日","へや|部屋","ぼく|僕","Ｌサイズ|"],"iadj":["あたらしい|新しい","ふるい|古い","あつい|暑い","さむい|寒い","あつい|熱い","いそがしい|忙しい","おおきい|大きい","ちいさい|小さい","おもしろい|面白い","つまらない|","やさしい|","むずかしい|難しい","かっこいい|","こわい|怖い","かわいい|","たのしい|楽しい","やすい|安い","たかい|高い"],"naadj":["すき|好き","きらい|嫌い","だいすき|大好き","だいきらい|大嫌い","きれい|","げんき|元気","しずか|静か","にぎやか|","ひま|暇"],"verbs":["およぐ|泳ぐ","きく|聞く","のる|乗る","やる|","でかける|出かける"],"adv":["いっしょに|一緒に","すごく|","とても|","だいじょうぶ|大丈夫","どんな|","〜まい|〜枚","〜さつ|〜冊"]};
+</script>
+
+<script>
+(() => {
+const COURSE = window.TANGO_COURSE;
+const TOPICS = COURSE.flatMap(l => l.topics.map(t => Object.assign(t, { lesson: l.id })));
+const WORDS = TOPICS.flatMap(t => t.items.map(it => ({ id: it[0] + '|' + it[1], topic: t.id, lesson: t.lesson, kana: it[0], kanji: it[1], romaji: it[2], ru: it[3], note: it[4], ex: it[5] })));
+const lessonOf = id => COURSE.find(l => l.id === id);
+const wordsOf = lessonId => WORDS.filter(w => w.lesson === lessonId);
+
+// ---------- Helpers ----------
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const shuf = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const plural = (n, a, b, c) => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; };
+const dayKey = (d = new Date()) => d.toLocaleDateString('sv-SE');
+const today = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 6e4) / 864e5); // local day number
+const SMALL = 'ゃゅょャュョぁぃぅぇぉァィゥェォー';
+const graphemes = s => { const o = []; for (const ch of s.replace(/\s/g, '')) { if (SMALL.includes(ch) && o.length) o[o.length - 1] += ch; else o.push(ch); } return o; };
+const hasKanji = w => w.kanji && w.kanji !== w.kana;
+const showK = w => PREF.kanji !== false && hasKanji(w); // the learner can hide kanji and study in kana only
+const hintKanji = w => showK(w) && !/^\d/.test(w.kanji); // "14日" next to じゅうよっか would give the answer away
+const CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const SAY_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const ls = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+
+// ---------- Grammar drills: items that behave like words (id, prompt, answer) ----------
+// class: u = 1-е спряжение, ru = 2-е, irr = неправильный
+const VERBS = [['いく','u','идти, ехать',3],['きく','u','слушать',3],['はなす','u','говорить',3],['のむ','u','пить',3],['よむ','u','читать',3],['かえる','u','возвращаться',3],
+ ['おきる','ru','вставать',3],['たべる','ru','есть',3],['ねる','ru','спать',3],['みる','ru','смотреть',3],['くる','irr','приходить',3],['する','irr','делать',3],['べんきょうする','irr','учиться',3],
+ ['ある','u','быть (неодуш.)',4],['いる','ru','быть (одуш.)',4],['かう','u','покупать',4],['まつ','u','ждать',4],['とる','u','фотографировать',4]];
+const I_ROW = { 'う':'い','く':'き','ぐ':'ぎ','す':'し','つ':'ち','ぬ':'に','ぶ':'び','む':'み','る':'り' };
+function stems(v, cls) { // [right stem, a typical wrong stem]
+  const head = v.slice(0, -1), last = v.slice(-1);
+  if (cls === 'irr') return v.endsWith('くる') ? ['き', 'くり'] : [v.slice(0, -2) + 'し', v.slice(0, -2) + 'すり'];
+  if (cls === 'ru') return [head, head + 'り'];
+  return [head + I_ROW[last], last === 'る' ? head : v];
+}
+const VERB_RULE = { u: '1-е спряжение: последний слог меняется на «и»-ряд', ru: '2-е спряжение: убираем る', irr: 'неправильный глагол, форму нужно запомнить' };
+function verbDrill(set, past) {
+  return VERBS.filter(v => v[3] <= (past ? 4 : 3)).flatMap(([v, cls, ru]) => {
+    const [st, bad] = stems(v, cls), note = v === 'かえる' ? 'かえる — исключение: спрягается по 1-му спряжению' : VERB_RULE[cls];
+    const mk = (form, kind, answer, wrong) => ({ id: `g:${set}:${v}:${form}`, g: 1, kind, jp: v, ru, kana: answer, answer, wrong, note });
+    return past
+      ? [mk('past', 'Прошедшее время, утверждение', st + 'ました', [st + 'ます', st + 'ませんでした', bad + 'ました']),
+         mk('pastneg', 'Прошедшее время, отрицание', st + 'ませんでした', [st + 'ません', st + 'ました', bad + 'ませんでした'])]
+      : [mk('masu', 'Вежливая форма, утверждение', st + 'ます', [st + 'ません', bad + 'ます', bad + 'ません']),
+         mk('masen', 'Вежливая форма, отрицание', st + 'ません', [st + 'ます', bad + 'ません', bad + 'ます'])];
+  });
+}
+function adjDrill(set, past) {
+  const seen = new Set(), out = [];
+  WORDS.filter(w => w.topic === 'iadj' || w.topic === 'naadj').forEach(w => {
+    if (seen.has(w.kana)) return; seen.add(w.kana);
+    const k = w.kana, isI = w.topic === 'iadj', yo = k.endsWith('いい') && isI && (k === 'いい' || k === 'かっこいい');
+    const st = isI ? (yo ? k.slice(0, -2) + 'よ' : k.slice(0, -1)) : k, fake = isI ? k.slice(0, -1) : (k.endsWith('い') ? k.slice(0, -1) : k);
+    const note = yo ? 'いい → よ-: よくない, よかった' : isI ? 'い-прилагательное: い → くない / かった / くなかった' : 'な-прилагательное: じゃないです / でした / じゃなかったです';
+    const mk = (form, kind, answer, wrong) => out.push({ id: `g:${set}:${k}:${form}`, g: 1, kind, jp: k, ru: w.ru, kana: answer, answer, wrong, note });
+    if (isI) {
+      if (!past) mk('neg', 'Настоящее время, отрицание', st + 'くないです', [yo ? fake + 'くないです' : k + 'じゃないです', st + 'くないでした', st + 'かったです']);
+      else {
+        mk('past', 'Прошедшее время, утверждение', st + 'かったです', [yo ? fake + 'かったです' : k + 'でした', st + 'くなかったです', st + 'くないです']);
+        mk('pastneg', 'Прошедшее время, отрицание', st + 'くなかったです', [yo ? fake + 'くなかったです' : k + 'じゃなかったです', st + 'かったです', st + 'くないでした']);
+      }
+    } else if (!past) mk('neg', 'Настоящее время, отрицание', k + 'じゃないです', [fake + 'くないです', k + 'でした', k + 'じゃなかったです']);
+    else {
+      mk('past', 'Прошедшее время, утверждение', k + 'でした', [fake + 'かったです', k + 'じゃないです', k + 'じゃなかったです']);
+      mk('pastneg', 'Прошедшее время, отрицание', k + 'じゃなかったです', [fake + 'くなかったです', k + 'でした', k + 'じゃないでした']);
+    }
+  });
+  return out;
+}
+// «давайте»: the stem before ます + ましょう, and an invitation with ませんか (ある and いる make no sense as invitations)
+function letDrill(set) {
+  return VERBS.filter(v => v[0] !== 'ある' && v[0] !== 'いる').flatMap(([v, cls, ru]) => {
+    const [st, bad] = stems(v, cls), note = (v === 'かえる' ? 'かえる — исключение, 1-е спряжение' : VERB_RULE[cls]) + '; ましょう и ませんか ставятся туда же, где ます';
+    const mk = (form, kind, answer, wrong) => ({ id: `g:${set}:${v}:${form}`, g: 1, kind, jp: v, ru, kana: answer, answer, note,
+      wrong: [...new Set(wrong)].filter(x => x !== answer) });
+    return [mk('let', 'Давай сделаем: 〜ましょう', st + 'ましょう', [st + 'ます', bad + 'ましょう', v + 'ましょう', st + 'ませんか']),
+            mk('inv', 'Приглашение: 〜ませんか', st + 'ませんか', [st + 'ましょう', st + 'ません', bad + 'ませんか'])];
+  });
+}
+const GEN = { verbPres: s => verbDrill(s, false), verbPast: s => verbDrill(s, true), adjPres: s => adjDrill(s, false), adjPast: s => adjDrill(s, true), verbLet: s => letDrill(s) };
+const DRILLS = {};
+COURSE.forEach(l => (l.drills || []).forEach(d => {
+  DRILLS[d.id] = d.gen ? GEN[d.gen](d.id) : d.items.map(it => it.tiles
+    ? { id: `g:${d.id}:${it.tiles.join('')}`, g: 1, kind: it.k, ru: it.ru, tiles: it.tiles, extra: it.extra, free: it.free, kana: it.tiles.join(''), answer: it.tiles.join(' '), note: it.ex }
+    : { id: `g:${d.id}:${it.jp}`, g: 1, kind: it.k, jp: it.jp, ru: it.ru, answer: it.a, wrong: it.w, kana: it.jp.replace('＿', it.a === '×' ? ' ' : it.a.length <= 2 ? it.a + ' ' : it.a).replace(/\s+/g, ' ').trim(), note: it.ex });
+}));
+
+// ---------- State ----------
+// S is the synced progress: words[id] = {b: box 0..7, due: day number, t: changed-at ms, m: 1 if in "mistakes"} (grammar drill items live here too),
+// dev[deviceId] = {t: total XP earned on that device, d: {date: XP}}, days = {date: 1} with a finished lesson, passed = {topicId: date}.
+const KEY = 'tango-drill-v2', KEY_V1 = 'tango-drill-v1', KEY_PREF = 'tango-drill-pref';
+const PREF = Object.assign({ sound: true, kanji: true, dev: 'd' + Math.random().toString(36).slice(2, 10) }, ls.get(KEY_PREF) || {});
+ls.set(KEY_PREF, PREF);
+const DEV = PREF.dev;
+
+// ---------- Language: interface text and word meanings ----------
+// Russian shows the Russian glosses; English and Japanese show the English ones. Grammar notes and grammar exercises stay in Russian.
+const I18N = window.TANGO_I18N, EN = window.TANGO_EN, LANGS = ['ru', 'en', 'ja'];
+const lang = () => LANGS.includes(PREF.lang) ? PREF.lang : 'ru';
+function t(key, ...a) { const v = I18N[lang()][key] ?? I18N.ru[key]; return typeof v === 'function' ? v(...a) : v; }
+const cyr = s => /[А-Яа-яЁё]/.test(s || '');
+function localizeWords() {
+  const L_ = lang();
+  WORDS.forEach(w => {
+    if (L_ === 'ru') { w.gl = w.ru; w.nt = w.note; return; }
+    const e = EN.word(w); w.gl = e ? e[0] : w.ru; w.nt = e && e[1] != null ? e[1] : (cyr(w.note) ? '' : w.note);
+  });
+  Object.values(DRILLS).forEach(items => items.forEach(x => { x.gl = x.ru; x.nt = x.note; }));
+}
+const loc = (table, id, i, fallback) => { if (lang() === 'ru') return fallback; const e = table[id]; return (e && (Array.isArray(e) ? e[lang() === 'en' ? 0 : 1] : (e[lang()] || [])[i])) || fallback; };
+const lname = l => loc(EN.lessons, l.id, 0, l.name), lsub = l => loc(EN.lessons, l.id, 1, l.sub);
+const tname = tp => loc(EN.topics, tp.id, 0, tp.name), dname = d => loc(EN.drills, d.id, 0, d.name);
+// static text in the page: data-t = text, data-t-aria = aria-label, data-t-title = title, data-t-ph = placeholder
+function applyStatic() {
+  document.documentElement.lang = lang();
+  document.querySelectorAll('[data-t]').forEach(e => { e.textContent = t(e.dataset.t); });
+  document.querySelectorAll('[data-t-aria]').forEach(e => e.setAttribute('aria-label', t(e.dataset.tAria)));
+  document.querySelectorAll('[data-t-title]').forEach(e => e.setAttribute('title', t(e.dataset.tTitle)));
+  document.querySelectorAll('[data-t-ph]').forEach(e => e.setAttribute('placeholder', t(e.dataset.tPh)));
+}
+const fresh = (epoch = 0) => ({ v: 2, epoch, words: {}, dev: {}, days: {}, passed: {} });
+function sanitize(o) {
+  if (!o || typeof o !== 'object') return null;
+  const s = fresh(+o.epoch || 0), obj = x => (x && typeof x === 'object' ? x : {});
+  for (const [k, r] of Object.entries(obj(o.words))) if (r && typeof r === 'object') { s.words[k] = { b: clamp(Math.round(+r.b || 0), 0, 7), due: Math.round(+r.due || 0), t: +r.t || 0 }; if (r.m) s.words[k].m = 1; }
+  for (const [k, r] of Object.entries(obj(o.dev))) if (r && typeof r === 'object') { const d = {}; for (const [dk, x] of Object.entries(obj(r.d))) if (+x > 0) d[dk] = +x; s.dev[k] = { t: Math.max(0, +r.t || 0), d }; }
+  for (const k of Object.keys(obj(o.days))) if (/^\d{4}-\d\d-\d\d$/.test(k)) s.days[k] = 1;
+  for (const [k, v] of Object.entries(obj(o.passed))) if (typeof v === 'string') s.passed[k] = v;
+  return s;
+}
+function migrateV1(o) {
+  const s = fresh(0), order = window.TANGO_LEGACY_V1 || {}, t0 = today();
+  const idOf = k => { const [tp, i] = String(k).split(':'); return (order[tp] || [])[+i]; };
+  for (const [k, v] of Object.entries(o.str || {})) { const id = idOf(k); if (id) s.words[id] = { b: clamp(Math.round(+v || 0), 0, 5), due: t0, t: 1 }; }
+  (o.mis || []).forEach(k => { const id = idOf(k); if (id) s.words[id] = Object.assign({ b: 0, due: t0, t: 1 }, s.words[id], { m: 1 }); });
+  if (+o.xp > 0) s.dev[DEV] = { t: +o.xp, d: o.today && o.today.d && +o.today.xp > 0 ? { [o.today.d]: +o.today.xp } : {} };
+  (o.days || []).forEach(d => { s.days[d] = 1; });
+  Object.assign(s.passed, o.passed || {});
+  return sanitize(s);
+}
+let S = sanitize(ls.get(KEY)) || (ls.get(KEY_V1) ? migrateV1(ls.get(KEY_V1)) : fresh());
+const canon = o => JSON.stringify(o, (k, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.keys(v).sort().reduce((a, x) => (a[x] = v[x], a), {}) : v);
+// Two copies of the progress (this device and the cloud) merge field by field: the newer answer per word wins, XP adds up per device.
+function merge(a, b) {
+  if (a.epoch !== b.epoch) return sanitize(a.epoch > b.epoch ? a : b); // a reset on any device wins wholesale
+  const o = fresh(a.epoch);
+  for (const k of new Set([...Object.keys(a.words), ...Object.keys(b.words)])) { const x = a.words[k], y = b.words[k]; o.words[k] = { ...(!y || (x && x.t >= y.t) ? x : y) }; }
+  for (const k of new Set([...Object.keys(a.dev), ...Object.keys(b.dev)])) {
+    const x = a.dev[k], y = b.dev[k], w = !y || (x && x.t >= y.t) ? x : y, d = { ...w.d };
+    if (x && y && x.t === y.t) for (const [dk, v] of Object.entries(y.d)) d[dk] = Math.max(d[dk] || 0, v);
+    o.dev[k] = { t: w.t, d };
+  }
+  Object.assign(o.days, a.days, b.days);
+  for (const k of new Set([...Object.keys(a.passed), ...Object.keys(b.passed)])) o.passed[k] = [a.passed[k], b.passed[k]].filter(Boolean).sort()[0];
+  return o;
+}
+const save = (soon) => { ls.set(KEY, S); schedulePush(soon ? 300 : 4000); };
+
+// derived
+const rec = w => S.words[w.id] || null;
+const box = w => (rec(w) || {}).b || 0;
+const lvl = w => Math.min(3, box(w)); // 0 new, 1–2 learning, 3 learned
+const isNew = w => !rec(w);
+const isDue = w => { const r = rec(w); return !!r && (r.b === 0 || r.due <= today()); };
+const lvlName = w => isNew(w) ? t(w.g ? 'lvNewTask' : 'lvNewWord') : t('lv')[lvl(w)];
+const INTERVAL = [0, 0, 1, 3, 7, 14, 30, 60]; // days until the next review, by box
+const totalXp = () => Object.values(S.dev).reduce((a, d) => a + d.t, 0);
+const todayXp = () => Object.values(S.dev).reduce((a, d) => a + (d.d[dayKey()] || 0), 0);
+const GOAL = 30;
+function streak() { const d = new Date(); if (!S.days[dayKey(d)]) d.setDate(d.getDate() - 1); let n = 0; while (S.days[dayKey(d)]) { n++; d.setDate(d.getDate() - 1); } return n; }
+function addXp(xp) {
+  if (!xp) return; const cur = S.dev[DEV] || { t: 0, d: {} }, d = { ...cur.d, [dayKey()]: (cur.d[dayKey()] || 0) + xp };
+  Object.keys(d).sort().slice(0, -60).forEach(k => delete d[k]);
+  S.dev[DEV] = { t: cur.t + xp, d };
+}
+function dueText(w) {
+  const r = rec(w); if (!r) return t('lvNewWord');
+  const d = r.b === 0 ? 0 : r.due - today();
+  return d <= 0 ? t('dueToday') : d === 1 ? t('dueTomorrow') : t('dueIn', d);
+}
+const pct = (ws, lv = lvl) => ws.length ? Math.round(ws.reduce((a, w) => a + lv(w), 0) / (3 * ws.length) * 100) : 0;
+function counts(ws) { let done = 0, fresh_ = 0; ws.forEach(w => { if (isNew(w)) fresh_++; else if (lvl(w) >= 3) done++; }); return { done, part: ws.length - done - fresh_, fresh: fresh_ }; }
+// ---------- Motion helpers ----------
+const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+// a number that runs up from one value to another
+function countUp(node, from, to, ms = 900, fmt = v => String(v)) {
+  const run = node._run = (node._run || 0) + 1; // a newer call on the same number stops the older one
+  if (calm() || from === to) { node.textContent = fmt(to); return; }
+  const t0 = performance.now();
+  const step = t => { if (node._run !== run) return; const k = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 3); node.textContent = fmt(Math.round(from + (to - from) * e)); if (k < 1) requestAnimationFrame(step); };
+  node.textContent = fmt(from); requestAnimationFrame(step);
+}
+function bump(node) { if (calm()) return; node.classList.remove('bump'); void node.offsetWidth; node.classList.add('bump'); }
+
+// bar: gold = learned words, blue = words in progress; with `from` (old levels) it grows from the old state
+function barWidths(ws, lv) { const n = ws.length || 1; let done = 0, part = 0; ws.forEach(w => { const l = lv(w); if (l >= 3) done++; else if (l > 0) part += l / 3; }); return [done / n * 100, part / n * 100]; }
+// `held`: wait for bar.play() instead of growing on its own (when something covers the screen first)
+function segBar(ws, from, held) {
+  const bar = el('span', 'bar'), a = el('i'), b = el('i', 'part'), to = barWidths(ws, lvl);
+  const set = ([d, p]) => { a.style.width = d + '%'; b.style.width = p + '%'; };
+  bar.append(a, b); bar.play = () => {};
+  if (from && !calm()) { set(barWidths(ws, from)); bar.classList.add('grow'); bar.play = () => setTimeout(() => set(to), 500); if (!held) bar.play(); } else set(to);
+  return bar;
+}
+function dots(n) {
+  const d = el('span', 'dots'); d.setAttribute('role', 'img'); d.setAttribute('aria-label', t('levelAria', n));
+  for (let i = 0; i < 3; i++) d.append(el('i', i < n ? 'on' : '')); return d;
+}
+// the lesson new words are drawn from: the one picked on the home screen, else the last lesson already started
+function curLesson() {
+  if (PREF.cur && lessonOf(PREF.cur)) return PREF.cur;
+  const started = COURSE.filter(l => wordsOf(l.id).some(w => !isNew(w)));
+  return (started.length ? started[started.length - 1] : COURSE[0]).id;
+}
+
+// ---------- Sync between devices (private per account) ----------
+let ref = null, lastRemote = null, pushTimer = 0, pushing = false, dirty = false, syncState = 'local';
+const SYNC_TEXT = {
+  local: ['', 'syncLocal'],
+  loading: ['warn', 'syncLoading'],
+  saving: ['warn', 'syncSaving'],
+  ok: ['ok', 'syncOk'],
+  stale: ['warn', 'syncStale'],
+  error: ['', 'syncError']
+};
+function setSync(s) { syncState = s; $('sync').className = 'sync ' + SYNC_TEXT[s][0]; $('syncTxt').textContent = t(SYNC_TEXT[s][1]); }
+function schedulePush(delay) { if (!ref) return; dirty = true; clearTimeout(pushTimer); pushTimer = setTimeout(push, delay); if (syncState === 'ok') setSync('saving'); }
+async function push(retry) {
+  if (!ref || pushing || !dirty) return;
+  pushing = true; dirty = false;
+  const body = JSON.parse(JSON.stringify(S)), c = canon(body);
+  try { await ref.set(body); lastRemote = c; setSync('ok'); }
+  catch (e) {
+    if (e && e.code === 'unavailable' && !retry) { pushing = false; dirty = true; setTimeout(() => push(true), 1500 + Math.random() * 1500); return; }
+    setSync(e && e.code === 'unavailable' ? 'stale' : 'error');
+  }
+  pushing = false;
+  if (dirty) { clearTimeout(pushTimer); pushTimer = setTimeout(push, 1500); }
+}
+async function initSync() {
+  if (!window.claude || !window.claude.use) return;
+  const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+  const uid = db && user ? await user.id() : null;
+  if (!uid) return; // signed out or unavailable here: stay local
+  ref = db.doc('data/users/' + uid + '/progress');
+  setSync('loading');
+  let timer = setTimeout(() => { if (syncState === 'loading') setSync('stale'); }, 10000);
+  ref.onSnapshot(snap => {
+    if (snap.metadata && snap.metadata.hasPendingWrites) return; // our own write, not yet confirmed
+    const remote = snap.exists ? sanitize(snap.data()) : null;
+    if (!snap.metadata || !snap.metadata.fromCache) { clearTimeout(timer); timer = 0; }
+    lastRemote = remote ? canon(remote) : '';
+    if (remote) {
+      const m = merge(S, remote);
+      if (canon(m) !== canon(S)) { S = m; ls.set(KEY, S); refresh(); }
+    }
+    const empty = !S.epoch && !Object.keys(S.words).length && !Object.keys(S.dev).length; // nothing to store yet: no write on a first visit
+    if (canon(S) !== lastRemote && !(empty && !remote)) schedulePush(300); else if (!dirty && !pushing) setSync(snap.metadata && snap.metadata.fromCache ? 'loading' : 'ok');
+  }, () => { clearTimeout(timer); ref = null; setSync('error'); });
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && dirty) { clearTimeout(pushTimer); push(); } });
+
+// ---------- Sound, voice, haptics ----------
+let actx;
+function sfx(ok) {
+  if (!PREF.sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const now = actx.currentTime;
+    (ok ? [660, 880, 1320] : [240, 180]).forEach((f, i) => {
+      const o = actx.createOscillator(), g = actx.createGain(), t0 = now + i * .09;
+      o.type = ok ? 'sine' : 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(.12, t0 + .02); g.gain.exponentialRampToValueAtTime(.001, t0 + .25);
+      o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + .28);
+    });
+  } catch (e) {}
+}
+const canSpeak = 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
+function speak(text, force) {
+  if (!canSpeak || (!PREF.sound && !force)) return;
+  try { const u = new SpeechSynthesisUtterance(text.replace(/[〜~＿]/g, '')); u.lang = 'ja-JP'; u.rate = .85; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
+}
+const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
+function sayBtn(text) {
+  if (!canSpeak) return null;
+  const b = el('button', 'btn say'); b.type = 'button'; b.setAttribute('aria-label', t('say')); b.innerHTML = SAY_SVG;
+  b.onclick = e => { e.stopPropagation(); speak(text, true); }; return b;
+}
+
+// ---------- Screens ----------
+let screen = 'home';
+const U = { id: COURSE[0].id };
+function show(id) {
+  screen = id; ['home', 'unit', 'note', 'dict', 'profile', 'lesson', 'result'].forEach(s => { $(s).hidden = s !== id; });
+  $('tabs').hidden = id === 'lesson' || id === 'result' || id === 'note';
+  const tab = id === 'dict' || id === 'profile' ? id : 'home';
+  document.querySelectorAll('#tabs button').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+}
+function refresh() { if (screen === 'home') renderHome(); else if (screen === 'unit') renderUnit(); else if (screen === 'dict') renderDict(); else if (screen === 'profile') renderProfile(); }
+function goHome() { renderHome(); show('home'); }
+function goUnit(id) { if (id) U.id = id; renderUnit(); show('unit'); }
+function goBack() { if (L.origin === 'unit') goUnit(); else if (L.origin === 'dict') { renderDict(); show('dict'); } else goHome(); }
+
+// ---------- Home ----------
+const WD = ['日', '月', '火', '水', '木', '金', '土'];
+function bigRow(cls, glyph, name, right, ws, meta, check, onclick, badge) {
+  const b = el('button', 'btn topic ' + cls); b.type = 'button';
+  const tx_ = el('span', 'tx'), nm = el('span', 'nm');
+  nm.append(el('span', '', name), el('small', '', right));
+  tx_.append(nm); if (ws) tx_.append(segBar(ws)); if (meta) tx_.append(el('span', 'meta', meta));
+  if (badge) tx_.append(el('span', 'badge', badge));
+  const g = el('span', 'glyph', glyph);
+  if (check) { const ck = el('span', 'check'); ck.innerHTML = CHECK_SVG; ck.setAttribute('role', 'img'); ck.setAttribute('aria-label', t('passedAria')); g.append(ck); }
+  b.append(g, tx_); b.onclick = onclick; return b;
+}
+// Home: one "what to do now" card and the lessons. Stats and settings live on the Profile tab.
+let shownXp = null, shownStreak = null; // what the header showed last, so new XP can run up
+function renderHome() {
+  const n = streak(), cur = curLesson(), curL = lessonOf(cur), xp = totalXp();
+  $('hStreak').classList.toggle('off', !n);
+  $('hStreak').setAttribute('aria-label', t('streakAria', n));
+  if (shownStreak != null && n > shownStreak) { countUp($('hStreakN'), shownStreak, n, 600); bump($('hStreak')); } else countUp($('hStreakN'), n, n);
+  if (shownXp != null && xp > shownXp) { countUp($('hXp'), shownXp, xp, 1100); bump($('hXp').parentElement); } else countUp($('hXp'), xp, xp);
+  shownXp = xp; shownStreak = n;
+  const due = WORDS.filter(isDue).length, newCur = wordsOf(cur).filter(isNew).length;
+  const tom = WORDS.filter(w => { const r = rec(w); return r && r.b > 0 && r.due === today() + 1; }).length;
+  $('nowTitle').textContent = due ? t('nowDue', due) : newCur ? t('nowNew', lname(curL)) : t('nowDone');
+  $('nowSub').textContent = due ? (newCur ? t('subDueNew', lname(curL), newCur) : t('subDueNoNew'))
+    : newCur ? t('subNew', lsub(curL), newCur) : tom ? t('subTomorrow', tom) : t('subFree');
+  $('smartBtn').textContent = due ? t('btnReview') : newCur ? t('btnLearn') : t('btnFree');
+  const mis = WORDS.filter(w => (rec(w) || {}).m);
+  $('mistBtn').hidden = !mis.length;
+  $('mistN').textContent = t('mistN', mis.length);
+  const list = $('lessons'); list.innerHTML = '';
+  COURSE.forEach(l => {
+    const ws = wordsOf(l.id), c = counts(ws), gr = (l.drills || []).length;
+    const row = bigRow('', l.glyph, lname(l), pct(ws) + '%', ws, lsub(l), false, () => goUnit(l.id));
+    row.dataset.lesson = l.id; list.append(row);
+  });
+}
+// The profile animates only what is new since it was last shown: everything on the first visit after the app opens,
+// afterwards just the parts that changed (more XP, a new streak day, words that moved). Opening it again with nothing new shows it still.
+let profSeen = null;
+function renderProfile() {
+  const n = streak(), tx = todayXp(), cur = curLesson(), arc = $('ringArc'), xp = totalXp(), prev = profSeen;
+  const g0 = prev ? Math.min(prev.tx, GOAL) : 0, g1 = Math.min(tx, GOAL), off = g => String(194.8 * (1 - g / GOAL));
+  if (g0 !== g1 && !calm()) {
+    arc.style.transition = 'none'; arc.style.strokeDashoffset = off(g0); void arc.getBoundingClientRect(); arc.style.transition = '';
+    requestAnimationFrame(() => requestAnimationFrame(() => { arc.style.strokeDashoffset = off(g1); }));
+    countUp($('ringTxt'), g0, g1, 1000, v => `${v}/${GOAL}`);
+  } else { arc.style.transition = 'none'; arc.style.strokeDashoffset = off(g1); countUp($('ringTxt'), g1, g1, 0, v => `${v}/${GOAL}`); }
+  const lv = {}; WORDS.forEach(w => { lv[w.id] = lvl(w); });
+  const lvChanged = !prev || WORDS.some(w => prev.lv[w.id] !== lv[w.id]);
+  profSeen = { tx, xp, days: new Set(Object.keys(S.days)), lv };
+  $('goalTitle').textContent = tx >= GOAL ? t('goalDone') : n ? t('streakN', n) : t('goalStart');
+  $('goalSub').textContent = tx >= GOAL ? t('goalSubDone', tx) : S.days[dayKey()] ? t('goalLeft', GOAL - tx) : t('goalSubStart');
+  weekRow($('week'), prev ? k => !prev.days.has(k) : true);
+  const st = $('pStats'); st.innerHTML = '';
+  const passed = TOPICS.filter(t => S.passed[t.id]).length, xpB = el('b', '', xp);
+  [['f', t('statStreak'), el('b', '', t('days', n))], ['x', t('totalXp'), xpB], ['a', t('statTopics'), el('b', '', `${passed}/${TOPICS.length}`)]].forEach(([c, l, b]) => { const d = el('div', 'stat ' + c); d.append(el('span', '', l), b); st.append(d); });
+  countUp(xpB, prev ? prev.xp : 0, xp, 1000);
+  drawXpChart(!prev || prev.xp !== xp); // bars grow on the first visit and when new XP came in, like the rest of the profile
+  const cl = $('curList'); cl.innerHTML = '';
+  COURSE.forEach(l => {
+    const b = el('button'); b.type = 'button'; b.dataset.lesson = l.id; b.setAttribute('aria-pressed', String(l.id === cur));
+    b.append(lname(l), el('small', '', t('newN', wordsOf(l.id).filter(isNew).length)));
+    b.onclick = () => { PREF.cur = l.id; ls.set(KEY_PREF, PREF); renderProfile(); };
+    cl.append(b);
+  });
+  const ap = $('allProg'), ac = counts(WORDS), hd = el('div', 'nm'), lg = el('div', 'lg'); ap.innerHTML = '';
+  hd.append(el('span', '', t('learnedOf', ac.done, WORDS.length)), el('small', '', pct(WORDS) + '%'));
+  [['done', t('lgDone'), ac.done], ['part', t('lgPart'), ac.part], ['', t('lgNew'), ac.fresh]].forEach(([k, l, c]) => { const s = el('span'); s.append(el('i', k), `${l}: ${c}`); lg.append(s); });
+  ap.append(hd, segBar(WORDS, lvChanged ? (prev ? w => prev.lv[w.id] || 0 : () => 0) : null), lg);
+  $('soundVal').textContent = t(PREF.sound ? 'on' : 'off'); $('soundVal').className = PREF.sound ? '' : 'off';
+  $('kanjiVal').textContent = t(PREF.kanji !== false ? 'on' : 'off');
+  document.querySelectorAll('#langList button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang()))); $('kanjiVal').className = PREF.kanji !== false ? '' : 'off';
+}
+
+// ---------- XP by day chart (profile) ----------
+// XP of one day, summed over all devices (each device keeps its last 60 days)
+const xpOn = k => Object.values(S.dev).reduce((a, d) => a + (d.d[k] || 0), 0);
+function drawXpChart(grow) {
+  const R = [7, 14, 30].includes(PREF.xpRange) ? PREF.xpRange : 14, days = [];
+  for (let i = R - 1; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const k = dayKey(d); days.push({ k, d, xp: xpOn(k), today: i === 0 }); }
+  document.querySelectorAll('#xpRange button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.r === R)));
+  const total = days.reduce((a, x) => a + x.xp, 0), met = days.filter(x => x.xp >= GOAL).length;
+  const sum = $('xpSum'); sum.innerHTML = '';
+  t('xpSum', R, total, Math.round(total / R), met).forEach(part => sum.append(Array.isArray(part) ? el('b', '', part[0]) : part));
+  // y scale: a round top above both the best day and the daily goal
+  const max = Math.max(GOAL, ...days.map(x => x.xp)), step = max <= 60 ? 10 : max <= 150 ? 25 : max <= 400 ? 50 : 100;
+  const top = Math.ceil(max * 1.08 / step) * step, y = v => (v / top * 100);
+  const plot = $('xpPlot'); plot.innerHTML = '';
+  const ya = el('div', 'xpc-y'), area = el('div', 'xpc-area'), bars = el('div', 'xpc-bars'), xa = el('div', 'xpc-x');
+  ya.setAttribute('aria-hidden', 'true');
+  [0, top / 2, top].forEach(v => { const s = el('span', '', String(v)); s.style.top = (100 - y(v)) + '%'; ya.append(s); if (v) { const g = el('div', 'xpc-grid'); g.style.top = (100 - y(v)) + '%'; area.append(g); } });
+  const goal = el('div', 'xpc-goal'); goal.style.top = (100 - y(GOAL)) + '%'; area.append(goal);
+  bars.style.gap = R > 14 ? '2px' : '4px'; xa.style.gap = bars.style.gap;
+  const tip = el('div', 'xpc-tip'); tip.hidden = true;
+  let sel = null, pinned = false; // pinned: chosen by a tap or click, so it stays until tapped again; hover only previews
+  const pick = (col, x, tap) => {
+    if (tap && sel === col && pinned) { col.setAttribute('aria-pressed', 'false'); sel = null; pinned = false; tip.hidden = true; return; }
+    pinned = !!tap;
+    if (sel) sel.setAttribute('aria-pressed', 'false');
+    sel = col; col.setAttribute('aria-pressed', 'true');
+    tip.textContent = `${t('date', x.d)} · ${x.xp} XP`;
+    tip.style.left = (col.offsetLeft + col.offsetWidth / 2) + 'px'; tip.style.top = (100 - Math.max(y(x.xp), 0)) + '%'; tip.hidden = false;
+    const r = area.getBoundingClientRect(), w = tip.offsetWidth, cx = col.offsetLeft + col.offsetWidth / 2; // keep the tip inside the plot
+    tip.style.left = Math.min(Math.max(cx, w / 2), r.width - w / 2) + 'px';
+  };
+  const every = R <= 7 ? 1 : R <= 14 ? 2 : 5;
+  days.forEach((x, i) => {
+    const col = el('button', 'xpc-col' + (x.xp ? '' : ' zero')), bar = el('i');
+    col.type = 'button'; col.setAttribute('aria-pressed', 'false');
+    col.setAttribute('aria-label', `${t('dateShort', x.d)}${x.today ? ', ' + t('todayWord') : ''}: ${x.xp} XP`);
+    const h = y(x.xp) + '%';
+    if (grow && x.xp && !calm()) { bar.style.height = '0%'; setTimeout(() => { bar.style.height = h; }, 60 + i * (600 / R)); } else { bar.style.transition = 'none'; bar.style.height = h; }
+    col.append(bar); col.onclick = () => pick(col, x, true);
+    col.onpointerenter = e => { if (e.pointerType === 'mouse' && !pinned) pick(col, x); };
+    bars.append(col);
+    // day numbers under the bars, counted back from today: every day for a week, every 2nd for two weeks, every 5th for a month
+    const show = (R - 1 - i) % every === 0;
+    xa.append(el('span', x.today ? 'today' : '', x.today ? t('todayShort') : show ? String(x.d.getDate()) : ''));
+  });
+  bars.onpointerleave = e => { if (e.pointerType === 'mouse' && sel && !pinned) { sel.setAttribute('aria-pressed', 'false'); sel = null; tip.hidden = true; } };
+  area.append(bars, tip); plot.append(ya, area, xa);
+}
+
+// the last seven days; `pop` (true, or a test on the date) lights those streak days up one after another,
+// `todayLate` lights today last, after a pause
+function weekRow(box_, pop, todayLate) {
+  box_.innerHTML = '';
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const on = !!S.days[dayKey(d)];
+    const c = el('div', 'wd' + (on && !(todayLate && i === 0) ? ' on' : '') + (i === 0 ? ' today' : ''));
+    c.append(el('i', '', WD[d.getDay()]), el('span', '', i === 0 ? t('todayShort') : String(d.getDate())));
+    if (on && !calm() && (pop === true || (typeof pop === 'function' && pop(dayKey(d))))) { c.classList.add('pop'); c.style.setProperty('--d', (6 - i) * 70 + 'ms'); }
+    if (todayLate && i === 0 && on) setTimeout(() => { c.classList.add('on', 'pop'); c.style.setProperty('--d', '0ms'); }, calm() ? 0 : 900);
+    box_.append(c);
+  }
+}
+
+// full-screen moment when today's first finished lesson extends the streak
+function streakSplash(n, done) {
+  const bg = el('div', 'streak-bg'), s = el('div', 'streak gut'), num = el('div', 'st-num'), wk = el('div', 'week'), go = el('button', 'btn btn-main', t('cont'));
+  go.type = 'button'; go.id = 'streakGo'; bg.setAttribute('role', 'dialog'); bg.setAttribute('aria-label', t('streakAriaDlg'));
+  const flame = el('div', 'st-flame'); flame.innerHTML = $('hStreak').querySelector('svg').outerHTML;
+  s.append(flame, num, el('h2', '', n === 1 ? t('streakStarted') : t('streakExtended')),
+    el('p', '', n === 1 ? t('streakStartedSub') : t('streakExtendedSub', n)), wk, go);
+  bg.append(s); document.body.append(bg);
+  num.textContent = Math.max(0, n - 1); // yesterday's count first, then it ticks over together with today's day
+  setTimeout(() => { num.textContent = n; bump(num); }, calm() ? 0 : 900);
+  weekRow(wk, false, true);
+  go.onclick = () => { bg.remove(); done(); };
+  go.focus();
+}
+
+// ---------- One lesson ----------
+function renderUnit() {
+  const l = lessonOf(U.id), ws = wordsOf(l.id), body = $('uBody'); body.innerHTML = '';
+  $('uTitle').textContent = lname(l); $('uSub').textContent = lsub(l);
+  const c = counts(ws), due = ws.filter(isDue).length, panel = el('div', 'panel all'), hd = el('div', 'nm'), go = el('button', 'btn btn-main');
+  hd.append(el('span', '', t('learnedOf', c.done, ws.length)), el('small', '', pct(ws) + '%'));
+  go.type = 'button'; go.id = 'uGo';
+  go.textContent = due ? t('unitReview', due) : c.fresh ? t('unitLearn') : t('unitTrain');
+  go.onclick = () => startSmart(l.id);
+  panel.append(hd, segBar(ws), el('span', 'meta', t('unitMeta', due, c.part, c.fresh)), go);
+  body.append(panel, el('p', 'sec', t('byTopic')));
+  l.topics.forEach(tp => {
+    const tw = WORDS.filter(w => w.topic === tp.id), tc = counts(tw), done = !!S.passed[tp.id];
+    const td = tw.filter(isDue).length;
+    const row = bigRow(done ? 'passed' : '', tp.glyph, tname(tp), `${tc.done} / ${tw.length}`, tw, '', done,
+      () => startLesson(shuf(tw), { title: tname(tp), kind: 'topic', topicId: tp.id, pool: tw }), td ? t('dueBadge', td) : '');
+    row.setAttribute('aria-label', t('topicAria', tname(tp), tc.done, tw.length, td, done));
+    row.dataset.topic = tp.id; body.append(row);
+  });
+  if (l.notes || l.drills) body.append(el('p', 'sec', t('grammar')));
+  if (l.notes) {
+    const row = bigRow('note-btn', '文', t('notesBtn'), t('notesN', l.notes.length), null, '', false, () => { renderNote(); show('note'); });
+    row.id = 'uNote'; body.append(row);
+  }
+  (l.drills || []).forEach(d => {
+    const items = DRILLS[d.id], dc = counts(items);
+    const row = bigRow('drill', d.glyph, dname(d), `${dc.done} / ${items.length}`, items, '', false,
+      () => startLesson(pickWeak(items, 8), { title: dname(d), kind: 'custom', pool: items }));
+    row.dataset.drill = d.id; body.append(row);
+  });
+  if (!l.notes && !l.drills) body.append(el('p', 'legend', t('onlyWords')));
+}
+// ---------- Notes as stories: one idea per screen, tap to move ----------
+const ST = { slides: [], i: 0, topics: 0 };
+function buildSlides(l) {
+  const out = [];
+  // rough height of a block in px on a phone; what fits below the title depends on the screen height
+  const room = Math.max(260, innerHeight - 330);
+  const lines = (s, per) => Math.ceil(s.length / per);
+  const weight = b => 16 + (b.p ? lines(b.p, 30) * 27 : b.li ? b.li.reduce((a, x) => a + 10 + lines(x, 28) * 27, 0)
+    : b.ex ? b.ex.reduce((a, e) => a + 14 + lines(e[0], 15) * 30 + lines(e[1], 36) * 21, 0)
+    : 45 + b.tb.r.reduce((a, r) => a + 18 + Math.max(...r.map(c => lines(c, Math.max(6, Math.floor(30 / r.length))))) * 24, 0));
+  l.notes.forEach((nt, ti) => {
+    const blocks = [];
+    nt.b.forEach(bl => { // long example lists are spread evenly over several screens
+      if (bl.ex && bl.ex.length > 4) { const n = Math.ceil(bl.ex.length / 4), size = Math.ceil(bl.ex.length / n); for (let i = 0; i < bl.ex.length; i += size) blocks.push({ ex: bl.ex.slice(i, i + size) }); }
+      else blocks.push(bl);
+    });
+    let cur = [], w = 0, part = 0;
+    const flush = () => { if (cur.length) { out.push({ ti, t: nt.t, part: part++, b: cur }); cur = []; w = 0; } };
+    blocks.forEach(b => { const x = weight(b); if (cur.length && w + x > room) flush(); cur.push(b); w += x; });
+    flush();
+  });
+  out.push({ end: true, ti: l.notes.length });
+  return out;
+}
+function renderNote() {
+  const l = lessonOf(U.id);
+  ST.slides = buildSlides(l); ST.i = 0; ST.topics = l.notes.length;
+  $('stLesson').textContent = t('notesOf', lname(l));
+  const bars = $('stBars'); bars.innerHTML = '';
+  l.notes.forEach(() => { const s = el('span'); s.append(el('i')); bars.append(s); });
+  drawSlide(0);
+}
+function drawSlide(dir) {
+  const s = ST.slides[ST.i], card = $('stCard'), l = lessonOf(U.id);
+  card.innerHTML = ''; card.className = 'st-card' + (s.end ? ' st-end' : '');
+  if (dir) { void card.offsetWidth; card.classList.add(dir > 0 ? 'fwd' : 'back'); }
+  if (s.end) {
+    const drills = (l.drills || []).length, again = el('button', 'btn', t('reread')), done = el('button', 'btn btn-main', drills ? t('toDrills') : t('backUnit'));
+    again.type = done.type = 'button';
+    again.onclick = () => { ST.i = 0; drawSlide(-1); }; done.onclick = () => goUnit();
+    card.append(el('div', 'big', 'おわり'), el('h2', '', t('notesDone')),
+      el('p', '', drills ? t('notesDoneDrills', drills) : t('notesDoneWords')), done, again);
+  } else {
+    card.append(el('div', 'st-eyebrow', t('topicOf', s.ti + 1, ST.topics)), el('h2', s.part ? 'cont' : '', s.part ? s.t + ' · ' + t('contd') : s.t));
+    s.b.forEach(bl => {
+      if (bl.p) card.append(el('p', '', bl.p));
+      if (bl.li) { const ul = el('ul'); bl.li.forEach(x => ul.append(el('li', '', x))); card.append(ul); }
+      if (bl.ex) { const box_ = el('div', 'exs'); bl.ex.forEach(([jp, ru]) => { const d = el('div'); d.append(el('b', '', jp), el('span', '', ru)); box_.append(d); }); card.append(box_); }
+      if (bl.tb) {
+        const wrap = el('div', 'gt-wrap'), tbl = el('table', 'gt'), hr = el('tr');
+        bl.tb.h.forEach(h => hr.append(el('th', '', h))); tbl.append(hr);
+        bl.tb.r.forEach(r => { const row = el('tr'); r.forEach(x => row.append(el('td', '', x))); tbl.append(row); });
+        wrap.append(tbl); card.append(wrap);
+      }
+    });
+  }
+  // each bar is one topic; it fills as its screens are read
+  [...$('stBars').children].forEach((bar, ti) => {
+    const mine = ST.slides.filter(x => x.ti === ti), read = mine.filter(x => ST.slides.indexOf(x) <= ST.i).length;
+    bar.firstChild.style.width = (read / mine.length * 100) + '%';
+  });
+  $('stCount').textContent = s.end ? t('end') : t('screenOf', ST.i + 1, ST.slides.length - 1);
+  $('stPrev').disabled = ST.i === 0; $('stNext').disabled = !!s.end;
+  $('stHint').textContent = ST.i === 0 ? t('stHint') : '';
+  $('stStage').scrollTop = 0;
+}
+function stGo(d) {
+  const i = clamp(ST.i + d, 0, ST.slides.length - 1);
+  if (i === ST.i) return; ST.i = i; drawSlide(d);
+}
+
+// ---------- Dictionary ----------
+const D = { q: '', f: 'all', l: 'all', open: null };
+const FILTERS = [['all', 'fAll', () => true], ['due', 'fDue', isDue], ['new', 'fNew', isNew], ['learn', 'fLearn', w => !isNew(w) && lvl(w) < 3], ['done', 'fDone', w => lvl(w) >= 3], ['mis', 'fMis', w => !!(rec(w) || {}).m]];
+const norm = s => s.toLowerCase().replace(/[’'\s〜~]/g, '');
+const inLesson = w => D.l === 'all' || w.lesson === D.l;
+function dictWords() {
+  const f = FILTERS.find(x => x[0] === D.f)[2], q = norm(D.q);
+  return WORDS.filter(w => inLesson(w) && f(w) && (!q || [w.kana, w.kanji, w.romaji, w.ru, w.gl].some(x => norm(x).includes(q))));
+}
+function chip(box_, label, count, on, onclick) {
+  const b = el('button'); b.type = 'button'; b.setAttribute('aria-pressed', String(on));
+  b.append(label); if (count != null) b.append(el('small', '', count)); b.onclick = onclick; box_.append(b);
+}
+function renderDict() {
+  const lb = $('dLesson'); lb.innerHTML = '';
+  lb.append(D.l === 'all' ? t('allLessons') : lname(lessonOf(D.l))); lb.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9l7 7 7-7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  const fl = $('dFilters'); fl.innerHTML = '';
+  FILTERS.forEach(([id, name, fn]) => chip(fl, t(name), WORDS.filter(w => inLesson(w) && fn(w)).length, D.f === id, () => { D.f = id; D.open = null; renderDict(); }));
+  renderDictList();
+}
+function renderDictList() {
+  const ws = dictWords(), list = $('dList'); list.innerHTML = '';
+  if (!ws.length) list.append(el('p', 'd-empty', D.q ? t('noFound') : t('noWords')));
+  TOPICS.forEach(tp => {
+    const g = ws.filter(w => w.topic === tp.id); if (!g.length) return;
+    list.append(el('p', 'd-group', `${lname(lessonOf(tp.lesson))} · ${tname(tp)} · ${g.length}`));
+    g.forEach(w => {
+      const row = el('button', 'd-row'); row.type = 'button'; row.dataset.id = w.id; row.setAttribute('aria-expanded', String(D.open === w.id));
+      const r1 = el('span', 'r1'), k = el('span', 'k');
+      k.append(el('b', '', w.kana), el('small', '', (showK(w) ? w.kanji + ' · ' : '') + w.romaji));
+      r1.append(k, el('span', 'ru', w.gl), dots(lvl(w))); row.append(r1);
+      if (D.open === w.id) {
+        const more = el('span', 'd-more'), txt = el('span', 'txt');
+        const st = el('span'); if (w.ex) { st.append(el('span', 'ex', '例外'), ' '); } st.append(isNew(w) ? t('lvNewWord') : lvlName(w) + ' · ' + dueText(w));
+        txt.append(st); if (w.nt) txt.append(el('span', 'note', w.nt));
+        more.append(txt); const sb = sayBtn(w.kana); if (sb) more.append(sb);
+        row.append(more);
+      }
+      row.onclick = () => { D.open = D.open === w.id ? null : w.id; renderDictList(); };
+      list.append(row);
+    });
+  });
+  $('dFoot').hidden = !ws.length;
+  $('dTrain').textContent = t('train', Math.min(8, ws.length), ws.length);
+}
+
+function chooser(title, items, current, onPick) { // bottom sheet with a short list to pick from
+  const bg = el('div', 'sheet-bg'), s = el('div', 'sheet gut'), list = el('div', 'pick');
+  const close = () => bg.remove();
+  items.forEach(([v, label, sub]) => {
+    const b = el('button'); b.type = 'button'; b.dataset.v = v; b.setAttribute('aria-pressed', String(v === current));
+    b.append(el('span', '', label), el('small', '', sub)); b.onclick = () => { close(); onPick(v); }; list.append(b);
+  });
+  s.append(el('h3', '', title), list); bg.append(s); document.body.append(bg);
+  bg.onclick = e => { if (e.target === bg) close(); };
+  (list.querySelector('[aria-pressed="true"]') || list.firstChild).focus();
+}
+
+// ---------- Lesson building ----------
+const L = {};
+const pickWeak = (pool, n) => pool.map(w => ({ w, r: box(w) + ((rec(w) || {}).m ? -1 : 0) + (isDue(w) ? -.5 : 0) + Math.random() * 1.6 })).sort((a, b) => a.r - b.r).slice(0, n).map(x => x.w);
+function makeQ(w) {
+  if (w.g) return { type: w.tiles ? 'order' : 'gch', w };
+  if (isNew(w)) return { type: 'jp2ru', w }; // first meeting: recognition only
+  const b = box(w), types = b < 1 ? ['jp2ru', 'jp2ru', 'ru2jp'] : ['jp2ru', 'ru2jp', 'ru2jp'];
+  if (showK(w)) types.push('kanji');
+  const g = graphemes(w.kana);
+  if (g.length >= 2 && g.length <= 9 && !/[〜Ｌ]/.test(w.kana)) types.push('build', b >= 1 ? 'build' : 'jp2ru');
+  return { type: types[Math.floor(Math.random() * types.length)], w };
+}
+// Words go in groups of about four: new ones are introduced first, then the group is asked in random order.
+function buildQueue(words) {
+  const q = [], n = Math.max(1, Math.round(words.length / 4)), size = Math.ceil(words.length / n);
+  for (let c = 0; c < n; c++) {
+    const group = words.slice(c * size, c * size + size);
+    group.filter(w => isNew(w) && !w.g).forEach(w => q.push({ type: 'intro', w }));
+    shuf(group).forEach(w => q.push(makeQ(w)));
+    const pairs = words.slice(0, c * size + size).filter(w => !w.g);
+    if (pairs.length >= 4 && c === Math.min(1, n - 1)) q.push({ type: 'match', ws: shuf(pairs).slice(0, 5) });
+  }
+  return q;
+}
+// due words first, then new ones from one lesson; lessonId limits everything to that lesson
+function startSmart(lessonId) {
+  const pool = lessonId ? wordsOf(lessonId) : WORDS, from = lessonId || curLesson();
+  if (lessonId) { PREF.cur = lessonId; ls.set(KEY_PREF, PREF); }
+  const due = pool.filter(isDue).sort((a, b) => (rec(a).due - rec(b).due) || (box(a) - box(b)));
+  let words = due.slice(0, 8), title = t('tReview');
+  if (words.length < 8) words = words.concat(wordsOf(from).filter(isNew).slice(0, Math.min(5, 8 - words.length)));
+  if (!words.length) { words = pickWeak(pool, 8); title = t('tFree'); }
+  startLesson(words, { title, kind: 'smart', lessonId: lessonId || null });
+}
+function startMistakes() {
+  const ws = WORDS.filter(w => (rec(w) || {}).m);
+  startLesson(shuf(ws).slice(0, 8), { title: t('tMist'), kind: 'mist' });
+}
+function startLesson(words, o) {
+  if (!words.length) return;
+  const queue = buildQueue(words), before = {}, wasNew = new Set(words.filter(isNew).map(w => w.id));
+  WORDS.concat(o.pool || [], words).forEach(w => { before[w.id] = lvl(w); });
+  const total = queue.filter(q => q.type !== 'intro').length, intros = queue.filter(q => q.type === 'intro').length;
+  Object.assign(L, { topicId: null, pool: null, lessonId: null }, o, { origin: screen === 'lesson' || screen === 'result' ? L.origin : screen, queue, total, before, wasNew, intros, introN: 0, i: 0,
+    hearts: o.kind === 'topic' ? Math.max(5, Math.ceil(words.length / 5)) : 5, xp: 0, combo: 0, right: 0, wrong: 0, failed: new Set(), seen: words });
+  show('lesson'); head(); renderQ();
+}
+function distract(w, field, n) {
+  const seen = new Set([w[field]]), out = [];
+  for (const x of shuf(WORDS.filter(x => x.topic === w.topic)).concat(shuf(WORDS.filter(x => x.lesson === w.lesson)), shuf(WORDS))) {
+    if (out.length >= n) break;
+    if (x.kana === w.kana || seen.has(x[field])) continue;
+    seen.add(x[field]); out.push(x[field]);
+  }
+  return out;
+}
+
+// ---------- Lesson rendering ----------
+const qEl = $('q'), foot = $('foot'), msg = $('msg'), act = $('act');
+function head() {
+  // every task is answered right exactly once (a miss is repeated), so the bar never moves back
+  $('prog').style.width = (L.right / L.total * 100) + '%';
+  $('count').textContent = t('count', L.right, L.total);
+  $('heartsN').textContent = L.hearts;
+  $('combo').textContent = L.combo >= 3 ? t('combo', L.combo) : '';
+}
+function setFoot(kind, title, sub, label, action) {
+  foot.className = 'l-foot' + (kind ? ' ' + kind : '');
+  msg.innerHTML = '';
+  if (title) msg.append(el('b', '', title));
+  if (sub) msg.append(sub instanceof Node ? sub : el('span', '', sub));
+  act.hidden = !label; act.textContent = label || ''; L.action = action;
+  act.disabled = action === 'check';
+}
+function renderQ() {
+  const q = L.queue[L.i]; L.answered = false; L.sel = null; L.built = null;
+  qEl.innerHTML = '';
+  const kind = el('h1', 'q-kind');
+  if (q.again) kind.append(el('span', 'again', t('retry')));
+  qEl.append(kind);
+  if (q.type === 'intro') return renderIntro(q, kind);
+  if (q.type === 'match') return renderMatch(q, kind);
+  if (q.type === 'kanji' && !showK(q.w)) q.type = 'ru2jp'; // kanji were switched off after the lesson was built
+  const w = q.w, prompt = el('div', 'prompt'), main = el('div', 'prompt-main'), lv = el('div', 'lvl');
+  lv.append(dots(lvl(w)), lvlName(w)); main.append(lv);
+  let jpOpts = true, two = true, sayOpts = true;
+  if (q.type === 'jp2ru') {
+    kind.append(t('qJp'));
+    main.append(el('div', 'big', w.kana), el('div', 'sub', (hintKanji(w) ? w.kanji + ' · ' : '') + w.romaji));
+    const sb = sayBtn(w.kana); if (sb) prompt.append(sb);
+    q.answer = w.gl; q.opts = q.opts || shuf([w.gl, ...distract(w, 'gl', 3)]); jpOpts = false;
+    speak(w.kana);
+  } else if (q.type === 'ru2jp') {
+    kind.append(t('qRu'));
+    main.append(el('div', 'ru', w.gl));
+    q.answer = w.kana; q.opts = q.opts || shuf([w.kana, ...distract(w, 'kana', 3)]);
+  } else if (q.type === 'kanji') {
+    kind.append(t('qKanji'));
+    main.append(el('div', 'big', w.kanji), el('div', 'sub', w.gl));
+    q.answer = w.kana; q.opts = q.opts || shuf([w.kana, ...distract(w, 'kana', 3)]);
+  } else if (q.type === 'gch') {
+    kind.append(w.kind);
+    main.append(el('div', 'big sent', w.jp), el('div', 'sub', w.ru));
+    q.answer = w.answer; q.opts = q.opts || shuf([w.answer, ...shuf(w.wrong).slice(0, 3)]);
+    two = q.opts.every(o => o.length <= 4); // two columns only when every answer fits on one line sayOpts = false;
+  } else if (q.type === 'order') {
+    kind.append(w.kind);
+    main.append(el('div', 'ru', w.ru));
+    prompt.append(main); qEl.append(prompt);
+    return renderBuild(q, w.tiles, w.extra || [], true);
+  } else {
+    kind.append(t('qBuild'));
+    main.append(el('div', 'ru', w.gl));
+    prompt.append(main); qEl.append(prompt);
+    const target = graphemes(w.kana);
+    const extra = shuf(WORDS.flatMap(x => graphemes(x.kana)).filter(g => !target.includes(g) && !/[〜Ｌ0-9A-Za-z]/.test(g))).filter((g, i, a) => a.indexOf(g) === i).slice(0, 3);
+    q.answer = w.kana;
+    return renderBuild(q, target, extra, false);
+  }
+  prompt.append(main); qEl.append(prompt);
+  const grid = el('div', 'opts' + (jpOpts && two ? ' two' : ''));
+  q.opts.forEach((o, n) => {
+    const b = el('button', 'btn opt'); b.type = 'button'; b.dataset.v = o; b.setAttribute('aria-pressed', 'false');
+    b.append(el('span', 'n', n + 1), el('span', 't' + (jpOpts && o !== '×' ? ' jp' : ''), o === '×' ? t('nothing') : o));
+    b.onclick = () => {
+      if (L.answered) return; L.sel = o;
+      grid.querySelectorAll('.opt').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      act.disabled = false; if (jpOpts && sayOpts) speak(o);
+    };
+    grid.append(b);
+  });
+  qEl.append(grid);
+  setFoot('', '', '', t('check'), 'check');
+}
+function renderIntro(q, kind) {
+  const w = q.w; L.answered = true; L.introN++;
+  kind.append(t('newWord'));
+  const card = el('div', 'intro'); card.dataset.id = w.id;
+  if (w.ex) card.append(el('span', 'ex', '例外'));
+  if (showK(w)) card.append(el('div', 'kanji', w.kanji));
+  card.append(el('div', 'kana', w.kana), el('div', 'romaji', w.romaji), el('div', 'tr', w.gl));
+  if (w.nt) card.append(el('div', 'note' + (w.ex ? ' exn' : ''), w.nt));
+  const sb = sayBtn(w.kana); if (sb) card.append(sb);
+  qEl.append(card, el('p', 'intro-n', t('introN', L.introN, L.intros)));
+  if (!rec(w)) { S.words[w.id] = { b: 0, due: today(), t: Date.now() }; save(); } // now it counts as met
+  speak(w.kana);
+  setFoot('', '', '', t('gotIt'), 'next');
+}
+// tiles to tap in order: syllables of a word, or words of a sentence
+function renderBuild(q, target, extra, wide) {
+  const tiles = shuf([...target, ...extra]).map((g, id) => ({ g, id }));
+  const line = el('div', 'line'), bank = el('div', 'bank'), cls = 'btn tile' + (wide ? ' w' : '');
+  L.built = []; q.target = target;
+  const draw = () => {
+    line.innerHTML = ''; bank.innerHTML = '';
+    L.built.forEach(t => { const b = el('button', cls, t.g); b.type = 'button'; b.onclick = () => { if (L.answered) return; L.built = L.built.filter(x => x !== t); draw(); }; line.append(b); });
+    tiles.forEach(t => {
+      const used = L.built.includes(t), b = el('button', cls + (used ? ' ghost' : ''), t.g); b.type = 'button';
+      if (used) b.tabIndex = -1;
+      b.onclick = () => { if (L.answered || used) return; L.built.push(t); buzz(8); draw(); };
+      bank.append(b);
+    });
+    if (L.action === 'check') act.disabled = !L.built.length;
+  };
+  L.redraw = draw;
+  qEl.append(line, bank);
+  setFoot('', '', '', t('check'), 'check'); draw();
+}
+function renderMatch(q, kind) {
+  kind.append(t('qMatch'));
+  const left = el('div'), right = el('div'), wrap = el('div', 'match');
+  let sL = null, sR = null, matched = 0;
+  const pick = (b, side) => {
+    if (b.classList.contains('ok')) return;
+    if (side === 'L') { sL && sL.setAttribute('aria-pressed', 'false'); sL = b; speak(b.dataset.say); } else { sR && sR.setAttribute('aria-pressed', 'false'); sR = b; }
+    b.setAttribute('aria-pressed', 'true');
+    if (!sL || !sR) return;
+    const a = sL, c = sR; sL = sR = null;
+    a.setAttribute('aria-pressed', 'false'); c.setAttribute('aria-pressed', 'false');
+    if (a.dataset.k === c.dataset.k) {
+      a.classList.add('ok'); c.classList.add('ok'); a.disabled = c.disabled = true; matched++; buzz(12);
+      if (matched === q.ws.length) { sfx(true); resolve(true, q); }
+    } else {
+      [a, c].forEach(x => { x.classList.remove('bad'); void x.offsetWidth; x.classList.add('bad'); setTimeout(() => x.classList.remove('bad'), 450); });
+      L.combo = 0; L.wrong++; sfx(false); buzz([30, 40, 30]); head();
+    }
+  };
+  shuf(q.ws).forEach(w => { const b = el('button', 'btn pair jp', w.kana); b.type = 'button'; b.dataset.k = w.id; b.dataset.say = w.kana; b.onclick = () => pick(b, 'L'); left.append(b); });
+  shuf(q.ws).forEach(w => { const b = el('button', 'btn pair', w.gl); b.type = 'button'; b.dataset.k = w.id; b.onclick = () => pick(b, 'R'); right.append(b); });
+  wrap.append(left, right); qEl.append(wrap);
+  setFoot('', '', t('matchHint'), '', null);
+}
+
+// ---------- Answers and spaced repetition ----------
+function promote(w) { // right answer, first try in this lesson
+  const r = rec(w) || { b: 0, due: today() };
+  if (r.b >= 3 && r.due > today()) return; // learned and not due yet: extra practice does not shift the schedule
+  const b = Math.min(7, r.b + 1), n = { b, due: today() + INTERVAL[b], t: Date.now() };
+  if (r.m && b < 2) n.m = 1;
+  S.words[w.id] = n;
+}
+function demote(w) {
+  const r = rec(w) || { b: 0 };
+  S.words[w.id] = { b: Math.max(0, r.b - 2), due: today(), t: Date.now(), m: 1 };
+}
+function builtOk(q) {
+  const got = L.built.map(t => t.g), want = q.target, free = q.w.free || 0;
+  if (!free) return got.join('') === want.join('');
+  if (got.length !== want.length || got[got.length - 1] !== want[want.length - 1]) return false; // the verb closes the sentence
+  if (free === 1 && got[0] !== want[0]) return false; // the topic opens it
+  return got.slice().sort().join('|') === want.slice().sort().join('|'); // the middle may go in any order
+}
+function check() {
+  const q = L.queue[L.i], tiles = q.type === 'build' || q.type === 'order';
+  const ok = tiles ? builtOk(q) : L.sel === q.answer;
+  if (!tiles) qEl.querySelectorAll('.opt').forEach(b => { b.disabled = true; if (b.dataset.v === q.answer) b.classList.add('ok'); else if (b.dataset.v === L.sel) b.classList.add('bad'); });
+  resolve(ok, q);
+}
+function resolve(ok, q) {
+  L.answered = true;
+  if (ok) {
+    L.combo++; L.right++;
+    const gain = L.combo >= 3 ? 15 : 10; L.xp += gain;
+    let note = `+${gain} XP`;
+    if (q.w) {
+      const b0 = lvl(q.w);
+      if (!L.failed.has(q.w.id)) promote(q.w);
+      const b1 = lvl(q.w);
+      if (b1 > b0) note += b1 === 3 ? t(q.w.g ? 'taskDone' : 'wordDone') : t('levelUp', b1);
+      else if (!L.failed.has(q.w.id) && box(q.w) >= 3) note += ' · ' + dueText(q.w);
+      sfx(true); buzz(15); if (q.type !== 'jp2ru') speak(q.w.kana);
+    }
+    const praise = t('praise');
+    setFoot('ok', praise[Math.floor(Math.random() * praise.length)], note, t('cont'), 'next');
+  } else {
+    L.combo = 0; L.wrong++; L.hearts--;
+    demote(q.w); L.failed.add(q.w.id);
+    L.queue.push({ type: q.type, w: q.w, again: true });
+    sfx(false); buzz([40, 40, 40]);
+    $('hearts').classList.remove('hit'); void $('hearts').offsetWidth; $('hearts').classList.add('hit');
+    const sub = el('span'), right = q.w.g ? (q.w.tiles ? q.w.tiles.join(' ') : q.w.kana) : q.answer;
+    sub.append(t('rightIs'), el('span', q.type === 'jp2ru' ? '' : 'jp', right));
+    if (q.w.nt) sub.append(' · ' + q.w.nt);
+    setFoot('bad', t('wrong'), sub, t('gotIt'), 'next');
+    speak(q.w.kana);
+  }
+  save();
+  if ((q.type === 'build' || q.type === 'order') && L.redraw) L.redraw();
+  head(); act.focus({ preventScroll: true });
+}
+function next() {
+  L.redraw = null; L.i++;
+  if (L.hearts <= 0) return finish(false);
+  if (L.i >= L.queue.length) return finish(true);
+  renderQ(); $('q').parentElement.scrollTop = 0;
+}
+
+// ---------- Result ----------
+function finish(passed) {
+  addXp(L.xp);
+  const extended = passed && !S.days[dayKey()]; // first finished lesson today
+  if (passed) S.days[dayKey()] = 1;
+  const clean = passed && L.wrong === 0, topic = L.kind === 'topic' ? TOPICS.find(t => t.id === L.topicId) : null;
+  const wasDone = topic && !!S.passed[topic.id], gram = L.seen.every(w => w.g);
+  if (topic && clean && !wasDone) S.passed[topic.id] = dayKey();
+  save(true);
+  const n = streak(), acc = Math.round(L.right / Math.max(1, L.right + L.wrong) * 100);
+  const body = $('rBody'); body.innerHTML = '';
+  let title, text;
+  if (topic && clean) {
+    const badge = el('div', 'r-badge', topic.glyph), c = el('span', 'check'); c.innerHTML = CHECK_SVG; badge.append(c); body.append(badge);
+    title = wasDone ? t('topicAgain', tname(topic)) : t('topicPassed', tname(topic));
+    text = wasDone ? t('topicAgainText') : t('topicPassedText');
+  } else if (topic && passed) {
+    title = t('withErrors');
+    text = t('withErrorsText', L.wrong, wasDone);
+  } else if (passed) {
+    title = acc === 100 ? t('noErrors') : gram ? t('drillDone') : t('lessonDone');
+    text = gram ? t('drillText') : t('lessonText');
+  } else {
+    title = t('livesOut');
+    text = t('livesOutText');
+  }
+  body.append(el('div', 'r-big', clean ? 'かんぺき！' : passed ? 'おめでとう！' : 'がんばって！'), el('h2', '', title), el('p', '', text));
+  // the numbers run up and the bar grows from where it was before the lesson
+  const stats = el('div', 'stats'), xpB = el('b'), accB = el('b'), stB = el('b', '', t('days', n));
+  [['x', 'XP', xpB], ['a', t('accuracy'), accB], ['f', t('statStreak'), stB]].forEach(([c, l, b]) => { const d = el('div', 'stat ' + c); d.append(el('span', '', l), b); stats.append(d); });
+  body.append(stats);
+  const scope = L.pool || L.seen, old = w => L.before[w.id] || 0;
+  const p0 = pct(scope, old), p1 = pct(scope);
+  const moved = L.seen.filter(w => lvl(w) > old(w)).length, learned = L.seen.filter(w => lvl(w) === 3 && old(w) < 3).length;
+  const rp = el('div', 'panel r-prog'), rn = el('div', 'nm'), pB = el('b'), pv = el('span', 'pv');
+  pv.append(pB); if (p1 > p0) pv.append(el('span', 'gain', `+${p1 - p0}%`));
+  rn.append(el('span', '', L.pool ? t('progressOf', L.title) : t('progressWords')), pv);
+  const bar = segBar(scope, old, true);
+  xpB.textContent = '+0'; accB.textContent = '0%'; pB.textContent = p0 + '%';
+  const play = () => { // runs once the result is actually visible
+    countUp(xpB, 0, L.xp, 900, v => '+' + v); countUp(accB, 0, acc, 900, v => v + '%');
+    setTimeout(() => countUp(pB, p0, p1, 1100, v => v + '%'), calm() ? 0 : 500); bar.play();
+  };
+  rp.append(rn, bar, el('small', '', gram ? t('gramSum', moved, learned) : t('wordSum', L.wasNew.size, moved, learned)));
+  body.append(rp);
+  const words = el('div', 'words');
+  L.seen.forEach(w => {
+    const r = el('div', 'word' + (L.failed.has(w.id) ? ' bad' : '') + (w.g ? ' g' : '')), ch = el('span', 'ch'), d = lvl(w) - old(w);
+    if (d) ch.append(el('span', d > 0 ? 'up' : 'down', d > 0 ? '↑' : '↓'));
+    ch.append(dots(lvl(w)));
+    r.append(el('span', 'jp', w.kana), el('span', 'ru', w.g && w.jp && !w.jp.includes('＿') ? `${w.jp} · ${w.kind.toLowerCase()}` : w.gl), ch); words.append(r);
+  });
+  body.append(el('p', 'sec', gram ? t('tasks') : t('lessonWords')), words);
+  $('rHome').textContent = L.origin === 'unit' ? t('backUnit') : L.origin === 'dict' ? t('backDict') : t('home');
+  show('result');
+  if (extended) streakSplash(n, () => { play(); confetti(); }); else { play(); if (passed) confetti(); }
+}
+
+// ---------- Confetti ----------
+function confetti() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = $('confetti'), ctx = c.getContext('2d'), dpr = Math.min(devicePixelRatio || 1, 2);
+  c.width = innerWidth * dpr; c.height = innerHeight * dpr; ctx.scale(dpr, dpr);
+  const cs = getComputedStyle(document.documentElement);
+  const cols = ['--accent', '--gold', '--good', '--fire', '--bad'].map(v => cs.getPropertyValue(v).trim());
+  const P = Array.from({ length: 110 }, () => ({ x: innerWidth / 2, y: innerHeight * .3, vx: (Math.random() - .5) * 12, vy: -Math.random() * 12 - 4, r: Math.random() * 6, s: 5 + Math.random() * 6, c: cols[Math.floor(Math.random() * cols.length)], vr: (Math.random() - .5) * .4 }));
+  let t = 0;
+  (function frame() {
+    ctx.clearRect(0, 0, innerWidth, innerHeight); t++;
+    P.forEach(p => { p.vy += .35; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.globalAlpha = Math.max(0, 1 - t / 120); ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore(); });
+    if (t < 120) requestAnimationFrame(frame); else ctx.clearRect(0, 0, innerWidth, innerHeight);
+  })();
+}
+
+// ---------- In-page confirm ----------
+function sheet(title, text, yes, no, onYes) {
+  const bg = el('div', 'sheet-bg'), s = el('div', 'sheet gut');
+  const by = el('button', 'btn btn-main', no), bn = el('button', 'btn-quit', yes);
+  by.type = bn.type = 'button';
+  s.append(el('h3', '', title), el('p', '', text), by, bn); bg.append(s); document.body.append(bg);
+  const close = () => bg.remove();
+  by.onclick = close; bn.onclick = () => { close(); onYes(); };
+  bg.onclick = e => { if (e.target === bg) close(); };
+  by.focus();
+}
+
+// ---------- Wiring ----------
+act.onclick = () => { if (L.action === 'check') check(); else if (L.action === 'next') next(); };
+$('quitBtn').onclick = () => sheet(t('quitTitle'), t('quitText'), t('quitYes'), t('quitNo'), () => { if (canSpeak) try { speechSynthesis.cancel(); } catch (e) {} goBack(); });
+$('smartBtn').onclick = () => startSmart();
+$('mistBtn').onclick = startMistakes;
+$('rAgain').onclick = () => {
+  if (L.kind === 'topic') startLesson(shuf(L.pool), { title: L.title, kind: 'topic', topicId: L.topicId, pool: L.pool });
+  else if (L.kind === 'mist' && WORDS.some(w => (rec(w) || {}).m)) startMistakes();
+  else if (L.kind === 'custom') startLesson(pickWeak(L.pool, 8), { title: L.title, kind: 'custom', pool: L.pool });
+  else startSmart(L.lessonId || undefined);
+};
+$('rHome').onclick = goBack;
+$('uBack').onclick = goHome;
+$('nBack').onclick = () => goUnit();
+$('stPrev').onclick = () => stGo(-1);
+$('stNext').onclick = () => stGo(1);
+// tap the right two thirds of the screen to go on, the left third to go back; a sideways swipe works too
+$('note').addEventListener('click', e => {
+  if (e.target.closest('button')) return;
+  const r = $('note').getBoundingClientRect();
+  stGo(e.clientX - r.left < r.width * .32 ? -1 : 1);
+});
+let stTouch = null;
+$('note').addEventListener('touchstart', e => { const t = e.changedTouches[0]; stTouch = { x: t.clientX, y: t.clientY }; }, { passive: true });
+$('note').addEventListener('touchend', e => {
+  if (!stTouch) return; const t = e.changedTouches[0], dx = t.clientX - stTouch.x, dy = t.clientY - stTouch.y; stTouch = null;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5 && !e.target.closest('.gt-wrap')) stGo(dx < 0 ? 1 : -1);
+}, { passive: true });
+document.querySelectorAll('#xpRange button').forEach(b => { b.onclick = () => { PREF.xpRange = +b.dataset.r; ls.set(KEY_PREF, PREF); drawXpChart(false); }; });
+document.querySelectorAll('#langList button').forEach(b => { b.onclick = () => {
+  if (b.dataset.lang === lang()) return;
+  PREF.lang = b.dataset.lang; ls.set(KEY_PREF, PREF);
+  localizeWords(); applyStatic(); setSync(syncState); renderProfile();
+}; });
+$('soundBtn').onclick = () => { PREF.sound = !PREF.sound; ls.set(KEY_PREF, PREF); renderProfile(); };
+$('resetBtn').onclick = () => sheet(t('resetTitle'), t('resetText'), t('resetYes'), t('resetNo'), () => { S = fresh(Date.now()); save(true); renderProfile(); });
+document.querySelectorAll('#tabs button').forEach(b => { b.onclick = () => {
+  if (b.dataset.tab === 'dict') { renderDict(); show('dict'); } else if (b.dataset.tab === 'profile') { renderProfile(); show('profile'); } else goHome();
+}; });
+$('dLesson').onclick = () => chooser(t('pickLesson'), [['all', t('allLessons'), t('wordsN', WORDS.length)], ...COURSE.map(l => [l.id, lname(l), `${lsub(l)} · ${wordsOf(l.id).length}`])], D.l, v => { D.l = v; D.open = null; renderDict(); });
+$('kanjiBtn').onclick = () => { PREF.kanji = PREF.kanji === false; ls.set(KEY_PREF, PREF); renderProfile(); };
+$('dq').oninput = e => { D.q = e.target.value; D.open = null; renderDictList(); };
+$('dTrain').onclick = () => { const ws = dictWords(); startLesson(pickWeak(ws, 8), { title: t('tDict'), kind: 'custom', pool: ws }); };
+addEventListener('keydown', e => {
+  if (screen === 'note') {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); stGo(1); }
+    else if (e.key === 'ArrowLeft') stGo(-1);
+    else if (e.key === 'Escape') goUnit();
+    return;
+  }
+  if (screen !== 'lesson' || document.querySelector('.sheet-bg')) return;
+  const onBtn = e.target.closest && e.target.closest('button');
+  if (e.key === 'Enter' && !onBtn) { e.preventDefault(); if (!act.hidden && !act.disabled) act.click(); return; }
+  if (L.answered) return;
+  if (/^[1-4]$/.test(e.key)) { const b = qEl.querySelectorAll('.opt')[+e.key - 1]; if (b) b.click(); }
+  if (e.key === 'Backspace' && L.built && L.built.length && L.redraw) { e.preventDefault(); L.built.pop(); L.redraw(); }
+});
+if (location.hash === '#debug') window.__tango = { L, DRILLS, WORDS, state: () => S }; // for automated checks
+ls.set(KEY, S);
+localizeWords(); applyStatic(); setSync('local');
+renderHome();
+initSync().catch(() => setSync('error'));
+})();
+</script>
+</body>
+</html>
