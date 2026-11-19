@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / 'src'
 
 template = (SRC / 'template.html').read_text(encoding='utf-8')
-data = '\n'.join((SRC / name).read_text(encoding='utf-8').rstrip() for name in ['data.js', 'words-en.js', 'i18n.js'])
+data = '\n'.join((SRC / name).read_text(encoding='utf-8').rstrip() for name in ['data.js', 'words-en.js', 'i18n.js', 'backup.js'])
 legacy = json.dumps(json.loads((SRC / 'legacy-v1.json').read_text(encoding='utf-8')), ensure_ascii=False, separators=(',', ':'))
 app = (SRC / 'app.js').read_text(encoding='utf-8').rstrip()
 

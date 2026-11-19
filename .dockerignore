@@ -1,0 +1,14 @@
+*
+!Dockerfile
+!requirements.txt
+!deploy/
+!deploy/requirements.txt
+!deploy/gunicorn.conf.py
+!server/
+!server/*.py
+!tools/
+!tools/backup_db.py
+!index.html
+!server/monitor.html
+!server/static/
+!server/static/**

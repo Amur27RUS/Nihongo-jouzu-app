@@ -89,7 +89,10 @@ COURSE.forEach(l => (l.drills || []).forEach(d => {
 // ---------- State ----------
 // S is the synced progress: words[id] = {b: box 0..7, due: day number, t: changed-at ms, m: 1 if in "mistakes"} (grammar drill items live here too),
 // dev[deviceId] = {t: total XP earned on that device, d: {date: XP}}, days = {date: 1} with a finished lesson, passed = {topicId: date}.
-const KEY = 'tango-drill-v2', KEY_V1 = 'tango-drill-v1', KEY_PREF = 'tango-drill-pref';
+const KEY = 'tango-drill-v2', KEY_V1 = 'tango-drill-v1', KEY_PREF = 'tango-drill-pref', KEY_ACCOUNT = 'tango-account';
+const cachedAccount = ls.get(KEY_ACCOUNT);
+let account = cachedAccount && /^[a-f0-9]{32}$/.test(cachedAccount.id) && typeof cachedAccount.login === 'string' ? cachedAccount : null;
+let storageKey = account ? KEY + ':' + account.id : KEY;
 const PREF = Object.assign({ sound: true, kanji: true, dev: 'd' + Math.random().toString(36).slice(2, 10) }, ls.get(KEY_PREF) || {});
 ls.set(KEY_PREF, PREF);
 const DEV = PREF.dev;
@@ -139,7 +142,7 @@ function migrateV1(o) {
   Object.assign(s.passed, o.passed || {});
   return sanitize(s);
 }
-let S = sanitize(ls.get(KEY)) || (ls.get(KEY_V1) ? migrateV1(ls.get(KEY_V1)) : fresh());
+let S = sanitize(ls.get(storageKey)) || (!account && ls.get(KEY_V1) ? migrateV1(ls.get(KEY_V1)) : fresh());
 const canon = o => JSON.stringify(o, (k, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.keys(v).sort().reduce((a, x) => (a[x] = v[x], a), {}) : v);
 // Two copies of the progress (this device and the cloud) merge field by field: the newer answer per word wins, XP adds up per device.
 function merge(a, b) {
@@ -155,7 +158,7 @@ function merge(a, b) {
   for (const k of new Set([...Object.keys(a.passed), ...Object.keys(b.passed)])) o.passed[k] = [a.passed[k], b.passed[k]].filter(Boolean).sort()[0];
   return o;
 }
-const save = (soon) => { ls.set(KEY, S); schedulePush(soon ? 300 : 4000); };
+const save = (soon) => { ls.set(storageKey, S); schedulePush(soon ? 300 : 4000); };
 
 // derived
 const rec = w => S.words[w.id] || null;
@@ -214,52 +217,137 @@ function curLesson() {
   return (started.length ? started[started.length - 1] : COURSE[0]).id;
 }
 
-// ---------- Sync between devices (private per account) ----------
-let ref = null, lastRemote = null, pushTimer = 0, pushing = false, dirty = false, syncState = 'local';
+// ---------- Accounts and per-user progress ----------
+let pushTimer = 0, pushing = false, dirty = false, syncState = 'local';
+let authVerified = false, authBusy = true, authMode = 'login', authMessage = '', accountGeneration = 0;
 const SYNC_TEXT = {
-  local: ['', 'syncLocal'],
-  loading: ['warn', 'syncLoading'],
-  saving: ['warn', 'syncSaving'],
-  ok: ['ok', 'syncOk'],
-  stale: ['warn', 'syncStale'],
-  error: ['', 'syncError']
+  local: ['', 'syncLocal'], loading: ['warn', 'syncLoading'], saving: ['warn', 'syncSaving'],
+  ok: ['ok', 'syncOk'], stale: ['warn', 'syncStale'], error: ['', 'syncError']
 };
 function setSync(s) { syncState = s; $('sync').className = 'sync ' + SYNC_TEXT[s][0]; $('syncTxt').textContent = t(SYNC_TEXT[s][1]); }
-function schedulePush(delay) { if (!ref) return; dirty = true; clearTimeout(pushTimer); pushTimer = setTimeout(push, delay); if (syncState === 'ok') setSync('saving'); }
-async function push(retry) {
-  if (!ref || pushing || !dirty) return;
-  pushing = true; dirty = false;
-  const body = JSON.parse(JSON.stringify(S)), c = canon(body);
-  try { await ref.set(body); lastRemote = c; setSync('ok'); }
-  catch (e) {
-    if (e && e.code === 'unavailable' && !retry) { pushing = false; dirty = true; setTimeout(() => push(true), 1500 + Math.random() * 1500); return; }
-    setSync(e && e.code === 'unavailable' ? 'stale' : 'error');
+async function api(path, method = 'GET', body, userId) {
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch('/api/' + path, {
+      method, credentials: 'same-origin', signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', 'X-Nihongo-Request': '1', ...(userId ? { 'X-Nihongo-User': userId } : {}) },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) })
+    });
+    let data;
+    try { data = await response.json(); } catch (_) { throw { key: 'authUnavailable' }; }
+    if (!response.ok) throw { key: data.error || 'authUnavailable', status: response.status, data };
+    return data;
+  } catch (e) { if (e.key) throw e; throw { key: 'authUnavailable' }; }
+  finally { clearTimeout(timer); }
+}
+function guestProgress() { return sanitize(ls.get(KEY)) || fresh(); }
+function hasProgress(s) { return Object.keys(s.words).length || Object.keys(s.dev).length || Object.keys(s.days).length || Object.keys(s.passed).length; }
+function importGuestProgress() {
+  const guest = guestProgress(), devices = {};
+  // Keep guest XP separate from XP earned in the account.
+  for (const [id, value] of Object.entries(guest.dev)) devices[`guest:${guest.epoch}:${id}`] = value;
+  S = merge(S, { ...guest, epoch: S.epoch, dev: devices });
+  save(true);
+}
+function renderAccount() {
+  const signedIn = !!account && authVerified;
+  $('accountPanel').classList.toggle('guest', !signedIn);
+  $('accountPanel').hidden = signedIn;
+  $('accountActions').hidden = !signedIn;
+  $('profileTitle').textContent = signedIn ? t('profile') + ' ' + account.login : t('profile');
+  $('authOpen').hidden = signedIn;
+  $('authOpen').disabled = authBusy;
+  $('accountName').textContent = account ? t(authVerified ? 'authSignedIn' : 'authCached', account.login) : t('authGuest');
+  $('authForm').hidden = !!account && authVerified;
+  $('authFields').disabled = authBusy;
+  $('authLogout').hidden = !signedIn;
+  $('authLogout').disabled = authBusy;
+  $('authConfirmRow').hidden = authMode !== 'register';
+  $('authConfirm').required = authMode === 'register';
+  $('authCode').autocomplete = authMode === 'register' ? 'new-password' : 'current-password';
+  $('authSubmit').textContent = t(authBusy ? 'authWait' : authMode === 'register' ? 'authRegister' : 'authLogin');
+  $('authStatus').textContent = signedIn && authMessage ? t(authMessage) : '';
+  $('authDialogStatus').textContent = authMessage ? t(authMessage) : '';
+  document.querySelectorAll('[data-auth-mode]').forEach(b => { b.disabled = authBusy; b.setAttribute('aria-pressed', String(b.dataset.authMode === authMode)); });
+}
+function activateAccount(data) {
+  clearTimeout(pushTimer); accountGeneration++;
+  account = data ? data.user : null;
+  authVerified = !!account; dirty = false;
+  storageKey = account ? KEY + ':' + account.id : KEY;
+  const cached = sanitize(ls.get(storageKey));
+  S = account ? merge(cached || fresh(), sanitize(data.progress) || fresh()) : guestProgress();
+  ls.set(KEY_ACCOUNT, account); ls.set(storageKey, S);
+  profSeen = null;
+  $('backupStatus').textContent = '';
+  authMode = 'login';
+  $('authDialog').close();
+  $('authForm').reset();
+  // Account changes end any lesson still displaying another user's data.
+  renderHome(); renderProfile(); show('profile');
+  setSync(account ? 'loading' : 'local');
+  if (account) schedulePush(0);
+}
+function schedulePush(delay) {
+  if (!account) return;
+  dirty = true;
+  if (!authVerified) return;
+  clearTimeout(pushTimer); pushTimer = setTimeout(push, delay);
+  if (syncState === 'ok') setSync('saving');
+}
+async function push() {
+  if (!account || !authVerified || pushing) return;
+  const generation = accountGeneration, userId = account.id;
+  const current = () => generation === accountGeneration && account && account.id === userId;
+  pushing = true;
+  try {
+    let remote = await api('progress', 'GET', undefined, userId);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (!current()) return;
+      const merged = merge(S, sanitize(remote.progress) || fresh());
+      if (canon(S) !== canon(merged)) { S = merged; ls.set(storageKey, S); refresh(); }
+      if (remote.progress && canon(S) === canon(remote.progress)) { dirty = false; setSync('ok'); return; }
+      const sent = JSON.parse(JSON.stringify(S));
+      dirty = false; setSync('saving');
+      try {
+        await api('progress', 'PUT', { progress: sent, revision: remote.revision }, userId);
+        if (!current()) return;
+        dirty = canon(S) !== canon(sent);
+        setSync(dirty ? 'saving' : 'ok');
+        return;
+      } catch (e) {
+        if (e.key !== 'progressConflict') throw e;
+        remote = e.data;
+      }
+    }
+    if (current()) { dirty = true; setSync('stale'); }
+  } catch (e) {
+    if (!current()) return;
+    dirty = true;
+    if (e.key === 'authExpired' || e.key === 'authChanged') {
+      authVerified = false; authMessage = e.key; renderAccount(); setSync('error');
+    } else setSync('stale');
+  } finally {
+    pushing = false;
+    if (account && authVerified && (dirty || generation !== accountGeneration)) {
+      clearTimeout(pushTimer); pushTimer = setTimeout(push, 4000);
+    }
   }
-  pushing = false;
-  if (dirty) { clearTimeout(pushTimer); pushTimer = setTimeout(push, 1500); }
 }
 async function initSync() {
-  if (!window.claude || !window.claude.use) return;
-  const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
-  const uid = db && user ? await user.id() : null;
-  if (!uid) return; // signed out or unavailable here: stay local
-  ref = db.doc('data/users/' + uid + '/progress');
-  setSync('loading');
-  let timer = setTimeout(() => { if (syncState === 'loading') setSync('stale'); }, 10000);
-  ref.onSnapshot(snap => {
-    if (snap.metadata && snap.metadata.hasPendingWrites) return; // our own write, not yet confirmed
-    const remote = snap.exists ? sanitize(snap.data()) : null;
-    if (!snap.metadata || !snap.metadata.fromCache) { clearTimeout(timer); timer = 0; }
-    lastRemote = remote ? canon(remote) : '';
-    if (remote) {
-      const m = merge(S, remote);
-      if (canon(m) !== canon(S)) { S = m; ls.set(KEY, S); refresh(); }
-    }
-    const empty = !S.epoch && !Object.keys(S.words).length && !Object.keys(S.dev).length; // nothing to store yet: no write on a first visit
-    if (canon(S) !== lastRemote && !(empty && !remote)) schedulePush(300); else if (!dirty && !pushing) setSync(snap.metadata && snap.metadata.fromCache ? 'loading' : 'ok');
-  }, () => { clearTimeout(timer); ref = null; setSync('error'); });
+  try {
+    const data = await api('session');
+    if (data.user) {
+      const oldScreen = screen;
+      activateAccount(data);
+      if (oldScreen === 'home') goHome();
+    } else if (account) { authMessage = 'authExpired'; setSync('error'); }
+  } catch (_) { authMessage = 'authUnavailable'; if (account) setSync('stale'); }
+  finally { authBusy = false; renderAccount(); }
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && dirty) { clearTimeout(pushTimer); push(); } });
+setInterval(() => { if (document.visibilityState === 'visible') push(); }, 30000);
+addEventListener('online', () => { if (!authBusy) { if (authVerified) push(); else initSync(); } });
+document.addEventListener('visibilitychange', () => { if (authVerified) push(); });
 
 // ---------- Sound, voice, haptics ----------
 let actx;
@@ -343,6 +431,7 @@ function renderHome() {
 // afterwards just the parts that changed (more XP, a new streak day, words that moved). Opening it again with nothing new shows it still.
 let profSeen = null;
 function renderProfile() {
+  renderAccount();
   const n = streak(), tx = todayXp(), cur = curLesson(), arc = $('ringArc'), xp = totalXp(), prev = profSeen;
   const g0 = prev ? Math.min(prev.tx, GOAL) : 0, g1 = Math.min(tx, GOAL), off = g => String(194.8 * (1 - g / GOAL));
   if (g0 !== g1 && !calm()) {
@@ -372,9 +461,11 @@ function renderProfile() {
   hd.append(el('span', '', t('learnedOf', ac.done, WORDS.length)), el('small', '', pct(WORDS) + '%'));
   [['done', t('lgDone'), ac.done], ['part', t('lgPart'), ac.part], ['', t('lgNew'), ac.fresh]].forEach(([k, l, c]) => { const s = el('span'); s.append(el('i', k), `${l}: ${c}`); lg.append(s); });
   ap.append(hd, segBar(WORDS, lvChanged ? (prev ? w => prev.lv[w.id] || 0 : () => 0) : null), lg);
-  $('soundVal').textContent = t(PREF.sound ? 'on' : 'off'); $('soundVal').className = PREF.sound ? '' : 'off';
-  $('kanjiVal').textContent = t(PREF.kanji !== false ? 'on' : 'off');
-  document.querySelectorAll('#langList button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang()))); $('kanjiVal').className = PREF.kanji !== false ? '' : 'off';
+  $('soundValue').textContent = t(PREF.sound ? 'on' : 'off').toUpperCase();
+  $('kanjiValue').textContent = t(PREF.kanji !== false ? 'on' : 'off').toUpperCase();
+  $('soundBtn').setAttribute('aria-pressed', String(!!PREF.sound));
+  $('kanjiBtn').setAttribute('aria-pressed', String(PREF.kanji !== false));
+  document.querySelectorAll('#langList button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang())));
 }
 
 // ---------- XP by day chart (profile) ----------
@@ -962,6 +1053,90 @@ function sheet(title, text, yes, no, onYes) {
 }
 
 // ---------- Wiring ----------
+$('authOpen').onclick = () => {
+  authMode = 'login'; authMessage = ''; renderAccount();
+  $('authDialog').showModal(); $('authLogin').focus();
+};
+$('authClose').onclick = () => $('authDialog').close();
+$('authDialog').addEventListener('close', () => {
+  $('authCode').value = ''; $('authConfirm').value = '';
+});
+document.querySelectorAll('[data-auth-mode]').forEach(b => { b.onclick = () => {
+  authMode = b.dataset.authMode; authMessage = '';
+  $('authCode').value = ''; $('authConfirm').value = ''; renderAccount();
+}; });
+$('authForm').onsubmit = async e => {
+  e.preventDefault();
+  if (authBusy) return;
+  if (authMode === 'register' && $('authCode').value !== $('authConfirm').value) {
+    authMessage = 'authCodeMismatch'; renderAccount(); $('authConfirm').focus(); return;
+  }
+  const registering = authMode === 'register';
+  const body = { login: $('authLogin').value.trim(), code: $('authCode').value };
+  authBusy = true; authMessage = ''; renderAccount();
+  try {
+    const data = await api(authMode, 'POST', body);
+    activateAccount(data);
+    if (registering && hasProgress(guestProgress())) {
+      importGuestProgress(); authMessage = 'authGuestImported'; renderProfile();
+    } else authMessage = 'authWelcome';
+  } catch (e) { authMessage = e.key; }
+  finally {
+    $('authCode').value = ''; $('authConfirm').value = '';
+    authBusy = false; renderAccount();
+  }
+};
+$('authLogout').onclick = async () => {
+  if (authBusy) return;
+  authBusy = true; authMessage = ''; renderAccount();
+  try {
+    // Finish an outstanding write before invalidating its session.
+    for (let i = 0; pushing && i < 100; i++) await new Promise(resolve => setTimeout(resolve, 100));
+    if (pushing) throw { key: 'authUnavailable' };
+    if (authVerified) {
+      await push();
+      if (dirty && authVerified) throw { key: 'authUnsaved' };
+    }
+    await api('logout', 'POST', {});
+    activateAccount(null); authMessage = 'authLoggedOut';
+  } catch (e) { authMessage = e.key; }
+  finally { authBusy = false; renderAccount(); }
+};
+const backupStatus = key => { $('backupStatus').textContent = t(key); };
+$('exportBtn').onclick = () => {
+  try {
+    const data = window.TANGO_BACKUP.stringify(S);
+    const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+    const a = el('a'); a.href = url; a.download = `nihongo-jouzu-${dayKey()}.json`;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    backupStatus('backupExported');
+  } catch (e) { backupStatus('backupExportError'); }
+};
+$('importBtn').onclick = () => { $('backupFile').value = ''; $('backupFile').click(); };
+$('backupFile').onchange = async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const owner = storageKey;
+  $('importBtn').disabled = true;
+  let progress;
+  try {
+    if (file.size > window.TANGO_BACKUP.MAX_BYTES) throw new Error('File too large');
+    progress = window.TANGO_BACKUP.parse(await file.text());
+  } catch (e) { backupStatus('backupInvalid'); return; }
+  finally { $('backupFile').value = ''; $('importBtn').disabled = false; }
+  sheet(t('backupRestoreTitle'), t('backupRestoreText'), t('backupRestoreYes'), t('resetNo'), () => {
+    try {
+      if (owner !== storageKey) throw new Error('Account changed');
+      const restored = window.TANGO_BACKUP.restore(progress, S.epoch);
+      // Persist first: a quota/privacy failure must leave the current state intact.
+      localStorage.setItem(storageKey, JSON.stringify(restored));
+      S = restored;
+      schedulePush(300);
+      refresh();
+      backupStatus('backupRestored');
+    } catch (e) { backupStatus('backupSaveError'); }
+  });
+};
 act.onclick = () => { if (L.action === 'check') check(); else if (L.action === 'next') next(); };
 $('quitBtn').onclick = () => sheet(t('quitTitle'), t('quitText'), t('quitYes'), t('quitNo'), () => { if (canSpeak) try { speechSynthesis.cancel(); } catch (e) {} goBack(); });
 $('smartBtn').onclick = () => startSmart();
@@ -1019,8 +1194,8 @@ addEventListener('keydown', e => {
   if (e.key === 'Backspace' && L.built && L.built.length && L.redraw) { e.preventDefault(); L.built.pop(); L.redraw(); }
 });
 if (location.hash === '#debug') window.__tango = { L, DRILLS, WORDS, state: () => S }; // for automated checks
-ls.set(KEY, S);
-localizeWords(); applyStatic(); setSync('local');
+ls.set(storageKey, S);
+localizeWords(); applyStatic(); setSync('local'); renderAccount();
 renderHome();
 initSync().catch(() => setSync('error'));
 })();

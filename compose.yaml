@@ -1,0 +1,54 @@
+name: nihongo-jouzu
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      NIHONGO_ORIGIN: https://${SITE_HOST:?Set SITE_HOST in .env}
+      NIHONGO_DATABASE: /data/nihongo.sqlite3
+      NIHONGO_BEHIND_PROXY: '1'
+      NIHONGO_MONITOR_ADMINS: ${MONITOR_ADMINS:-}
+      NIHONGO_MONITOR_FILE: /monitor/status.json
+    volumes:
+      - ./data:/data
+      - ./backups:/backups
+      - ./monitor:/monitor:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 1
+    healthcheck:
+      test: [CMD, python, -c, "import os,urllib.request; r=urllib.request.Request('http://127.0.0.1:8000/api/session',headers={'Host':os.environ['NIHONGO_ORIGIN'].split('://')[1]}); urllib.request.urlopen(r,timeout=5)"]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  web:
+    image: caddy:2-alpine
+    profiles: [public]
+    restart: unless-stopped
+    environment:
+      SITE_HOST: ${SITE_HOST:?Set SITE_HOST in .env}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+volumes:
+  caddy_data:
+  caddy_config:

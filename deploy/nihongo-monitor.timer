@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Nihongo VPS metrics every 30 seconds
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=1s
+Unit=nihongo-monitor.service
+
+[Install]
+WantedBy=timers.target
