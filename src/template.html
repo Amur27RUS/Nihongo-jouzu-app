@@ -11,7 +11,7 @@ body { margin: 0; font: 14px system-ui, sans-serif; }
 img { max-width: 100%; }
 [hidden] { display: none !important; }
 </style>
-<title>Genki Drill</title>
+<title>Nihongo jouzu</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
 <style>
 /* Layout: one-column phone app. Home = streak + today's review + topics; Dictionary = searchable word list; Lesson = top bar / task / sticky answer sheet. */
@@ -152,11 +152,35 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .streak .week { width: 100%; margin: 4px 0 16px; }
 .set { display: flex; flex-direction: column; gap: 10px; }
 .set small { color: var(--muted); font-size: 13px; font-weight: 500; }
+.auth-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.auth-fields label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; }
+.auth-fields input { width: 100%; box-sizing: border-box; min-height: 48px; padding: 10px 12px; border: 2px solid var(--line); border-radius: 12px; background: var(--bg); }
+.auth-status { color: var(--muted); font-size: 13px; margin: 0; }
+.auth-status:empty { display: none; }
+.account-banner.guest { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 14px; }
+#profileTitle { overflow-wrap: anywhere; }
+.account-banner.guest #accountName { font-size: 13px; line-height: 1.3; }
+.auth-open { min-height: 40px; padding: 6px 10px; font-size: 14px; border-radius: 10px; white-space: nowrap; }
+.auth-dialog { width: min(480px, calc(100% - 24px)); max-height: calc(100dvh - 32px); box-sizing: border-box; padding: 20px; border: 1px solid var(--line); border-radius: 24px; background: var(--card); color: var(--ink); overflow-y: auto; }
+.auth-dialog::backdrop { background: rgba(10,12,30,.45); }
+.auth-dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+.auth-dialog-head h2 { margin: 0; font-size: 22px; }
+.auth-dialog .auth-status:not(:empty) { margin-top: 14px; }
 .set .sync { justify-content: flex-start; text-align: left; }
 .set-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .set-chips button { border: 2px solid var(--line); background: var(--card); border-radius: 12px; padding: 8px 12px; font-weight: 700; font-size: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
 .set-chips button small { font-size: 11px; font-weight: 500; color: var(--muted); }
 .set-chips button[aria-pressed="true"] { border-color: var(--accent); background: var(--sel-bg); color: var(--accent); }
+.settings-toggles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.settings-toggles .set-row { gap: 8px; padding: 10px 12px; font-size: 14px; line-height: 1.25; min-height: 56px; }
+.setting-state { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 30px; }
+.setting-value { color: var(--muted); font-size: 10px; font-weight: 800; line-height: 1; }
+.setting-icon { width: 26px; height: 26px; flex: 0 0 26px; color: var(--ink); }
+.setting-icon svg { display: block; width: 100%; height: 100%; }
+.setting-slash { display: none; }
+.settings-toggles [aria-pressed="false"] .setting-icon { color: var(--muted); }
+.settings-toggles [aria-pressed="false"] .setting-slash { display: block; }
+#sync { font-size: 12px; font-weight: 500; margin-top: 6px; }
 .set-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; text-align: left; }
 .set-row b { color: var(--accent); font-weight: 700; }
 .set-row b.off { color: var(--muted); }
@@ -422,7 +446,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 <!-- HOME -->
 <section class="screen" id="home">
   <header class="h-top gut">
-    <span class="logo">Genki Drill</span>
+    <span class="logo">Nihongo jouzu</span>
     <div class="chips">
       <span class="chip fire" id="hStreak" data-t-title="streakChip" role="img">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c1.5 4 6 6 6 12a6 6 0 0 1-12 0c0-3 1.5-5 3-6.5 0 2.3 1.2 3.5 2.3 3.8C10.6 8 11.3 5 12 2z"/><path fill="#ffd27a" d="M12 12c1 1.8 3 3 3 5.4a3 3 0 0 1-6 0c0-1.8 1-3 2-3.8 0 1 .4 1.8 1 2-.3-1.4-.3-2.6 0-3.6z"/></svg>
@@ -454,9 +478,14 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 
 <!-- PROFILE -->
 <section class="screen" id="profile" hidden>
-  <div class="d-top gut"><h1 data-t="profile"></h1></div>
+  <div class="d-top gut"><h1 id="profileTitle"></h1></div>
   <div class="scroll">
     <div class="h-body gut">
+      <div class="panel set account-banner" id="accountPanel">
+        <span id="accountName"></span>
+        <button class="btn auth-open" id="authOpen" type="button" data-t="authLogin"></button>
+
+      </div>
       <div class="panel">
         <div class="goal">
           <div class="ring" aria-hidden="true">
@@ -496,19 +525,49 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
         <div class="set-chips" id="curList" role="group" data-t-aria="curAria"></div>
         <small data-t="curNote"></small>
       </div>
-      <button class="btn set-row" id="kanjiBtn" type="button"><span data-t="kanji"></span><b id="kanjiVal"></b></button>
-      <button class="btn set-row" id="soundBtn" type="button"><span data-t="sound"></span><b id="soundVal"></b></button>
+      <div class="settings-toggles">
+      <button class="btn set-row" id="kanjiBtn" type="button"><span data-t="kanji"></span><span class="setting-state" aria-hidden="true"><span class="setting-icon" aria-hidden="true"><svg viewBox="0 0 26 26"><text x="13" y="20" text-anchor="middle" font-size="22" class="jp" fill="currentColor">漢</text><g class="setting-slash" fill="none" stroke-linecap="round"><path d="M3 3L23 23" stroke="var(--card)" stroke-width="5"/><path d="M3 3L23 23" stroke="currentColor" stroke-width="2"/></g></svg></span><span class="setting-value" id="kanjiValue"></span></span></button>
+      <button class="btn set-row" id="soundBtn" type="button"><span data-t="sound"></span><span class="setting-state" aria-hidden="true"><span class="setting-icon" aria-hidden="true"><svg viewBox="0 0 26 26"><path d="M3 10v6h5l6 5V5l-6 5z" fill="currentColor"/><path d="M18 9a6 6 0 0 1 0 8M21 6a10 10 0 0 1 0 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><g class="setting-slash" fill="none" stroke-linecap="round"><path d="M3 3L23 23" stroke="var(--card)" stroke-width="5"/><path d="M3 3L23 23" stroke="currentColor" stroke-width="2"/></g></svg></span><span class="setting-value" id="soundValue"></span></span></button>
+      </div>
       <div class="panel set">
-        <b data-t="sync"></b>
-        <div class="sync" id="sync" role="status"><i></i><span id="syncTxt"></span></div>
+        <b data-t="backupTitle"></b>
+        <small data-t="backupNote"></small>
+        <button class="btn" id="exportBtn" type="button" data-t="backupExport"></button>
+        <button class="btn" id="importBtn" type="button" data-t="backupImport"></button>
+        <input id="backupFile" type="file" accept=".json,application/json" hidden>
+        <small id="backupStatus" role="status" aria-live="polite"></small>
       </div>
       <p class="sec" data-t="howTitle"></p>
       <p class="legend" data-t="howText"></p>
       <button class="btn danger" id="resetBtn" type="button" data-t="reset"></button>
+      <div class="set" id="accountActions" hidden>
+        <button class="btn" id="authLogout" type="button" data-t="authLogout" hidden></button>
+        <small id="authStatus" class="auth-status" role="status" aria-live="polite"></small>
+      </div>
+      <div class="sync" id="sync" role="status"><i aria-hidden="true"></i><span id="syncTxt"></span></div>
       <a class="made" href="https://t.me/amuru" target="_blank" rel="noopener">made by @Amuru</a>
     </div>
   </div>
 </section>
+
+<dialog id="authDialog" class="auth-dialog" aria-labelledby="authDialogTitle">
+  <div class="auth-dialog-head"><h2 id="authDialogTitle" data-t="authTitle"></h2><button id="authClose" class="icon-btn" type="button" data-t-aria="authClose">×</button></div>
+        <form id="authForm">
+          <fieldset id="authFields" class="auth-fields">
+            <div class="set-chips" role="group" data-t-aria="authTitle">
+              <button type="button" data-auth-mode="login" data-t="authLogin" aria-pressed="true"></button>
+              <button type="button" data-auth-mode="register" data-t="authRegister" aria-pressed="false"></button>
+            </div>
+            <label><span data-t="authLoginLabel"></span><input id="authLogin" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" pattern="[A-Za-z0-9_]{3,32}" minlength="3" maxlength="32" aria-describedby="authLoginHint" required></label>
+            <small id="authLoginHint" data-t="authLoginHint"></small>
+            <label><span data-t="authCodeLabel"></span><input id="authCode" name="password" type="password" autocomplete="current-password" minlength="4" maxlength="128" aria-describedby="authCodeHint" required></label>
+            <small id="authCodeHint" data-t="authCodeHint"></small>
+            <label id="authConfirmRow" hidden><span data-t="authConfirmLabel"></span><input id="authConfirm" name="confirm" type="password" autocomplete="new-password" minlength="4" maxlength="128"></label>
+            <button class="btn btn-main" id="authSubmit" type="submit" data-t="authLogin"></button>
+          </fieldset>
+        </form>
+  <p id="authDialogStatus" class="auth-status" role="status" aria-live="polite"></p>
+</dialog>
 
 <!-- ONE LESSON -->
 <section class="screen" id="unit" hidden>

@@ -1,0 +1,5 @@
+Three.js 0.170.0 (MIT): https://github.com/mrdoob/three.js/tree/r170
+See THREE-LICENSE.txt. Includes OrbitControls from the same release.
+Natural Earth 1:110m land: public domain, https://www.naturalearthdata.com/about/terms-of-use/
+GeoJSON source: https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_110m_land.geojson
+All assets are served from this server; no client data is sent to asset CDNs.

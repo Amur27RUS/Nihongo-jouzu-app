@@ -11,7 +11,7 @@ body { margin: 0; font: 14px system-ui, sans-serif; }
 img { max-width: 100%; }
 [hidden] { display: none !important; }
 </style>
-<title>Genki Drill</title>
+<title>Nihongo jouzu</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
 <style>
 /* Layout: one-column phone app. Home = streak + today's review + topics; Dictionary = searchable word list; Lesson = top bar / task / sticky answer sheet. */
@@ -152,11 +152,35 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .streak .week { width: 100%; margin: 4px 0 16px; }
 .set { display: flex; flex-direction: column; gap: 10px; }
 .set small { color: var(--muted); font-size: 13px; font-weight: 500; }
+.auth-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.auth-fields label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; }
+.auth-fields input { width: 100%; box-sizing: border-box; min-height: 48px; padding: 10px 12px; border: 2px solid var(--line); border-radius: 12px; background: var(--bg); }
+.auth-status { color: var(--muted); font-size: 13px; margin: 0; }
+.auth-status:empty { display: none; }
+.account-banner.guest { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 14px; }
+#profileTitle { overflow-wrap: anywhere; }
+.account-banner.guest #accountName { font-size: 13px; line-height: 1.3; }
+.auth-open { min-height: 40px; padding: 6px 10px; font-size: 14px; border-radius: 10px; white-space: nowrap; }
+.auth-dialog { width: min(480px, calc(100% - 24px)); max-height: calc(100dvh - 32px); box-sizing: border-box; padding: 20px; border: 1px solid var(--line); border-radius: 24px; background: var(--card); color: var(--ink); overflow-y: auto; }
+.auth-dialog::backdrop { background: rgba(10,12,30,.45); }
+.auth-dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+.auth-dialog-head h2 { margin: 0; font-size: 22px; }
+.auth-dialog .auth-status:not(:empty) { margin-top: 14px; }
 .set .sync { justify-content: flex-start; text-align: left; }
 .set-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .set-chips button { border: 2px solid var(--line); background: var(--card); border-radius: 12px; padding: 8px 12px; font-weight: 700; font-size: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
 .set-chips button small { font-size: 11px; font-weight: 500; color: var(--muted); }
 .set-chips button[aria-pressed="true"] { border-color: var(--accent); background: var(--sel-bg); color: var(--accent); }
+.settings-toggles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.settings-toggles .set-row { gap: 8px; padding: 10px 12px; font-size: 14px; line-height: 1.25; min-height: 56px; }
+.setting-state { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 30px; }
+.setting-value { color: var(--muted); font-size: 10px; font-weight: 800; line-height: 1; }
+.setting-icon { width: 26px; height: 26px; flex: 0 0 26px; color: var(--ink); }
+.setting-icon svg { display: block; width: 100%; height: 100%; }
+.setting-slash { display: none; }
+.settings-toggles [aria-pressed="false"] .setting-icon { color: var(--muted); }
+.settings-toggles [aria-pressed="false"] .setting-slash { display: block; }
+#sync { font-size: 12px; font-weight: 500; margin-top: 6px; }
 .set-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; text-align: left; }
 .set-row b { color: var(--accent); font-weight: 700; }
 .set-row b.off { color: var(--muted); }
@@ -422,7 +446,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 <!-- HOME -->
 <section class="screen" id="home">
   <header class="h-top gut">
-    <span class="logo">Genki Drill</span>
+    <span class="logo">Nihongo jouzu</span>
     <div class="chips">
       <span class="chip fire" id="hStreak" data-t-title="streakChip" role="img">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c1.5 4 6 6 6 12a6 6 0 0 1-12 0c0-3 1.5-5 3-6.5 0 2.3 1.2 3.5 2.3 3.8C10.6 8 11.3 5 12 2z"/><path fill="#ffd27a" d="M12 12c1 1.8 3 3 3 5.4a3 3 0 0 1-6 0c0-1.8 1-3 2-3.8 0 1 .4 1.8 1 2-.3-1.4-.3-2.6 0-3.6z"/></svg>
@@ -454,9 +478,14 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 
 <!-- PROFILE -->
 <section class="screen" id="profile" hidden>
-  <div class="d-top gut"><h1 data-t="profile"></h1></div>
+  <div class="d-top gut"><h1 id="profileTitle"></h1></div>
   <div class="scroll">
     <div class="h-body gut">
+      <div class="panel set account-banner" id="accountPanel">
+        <span id="accountName"></span>
+        <button class="btn auth-open" id="authOpen" type="button" data-t="authLogin"></button>
+
+      </div>
       <div class="panel">
         <div class="goal">
           <div class="ring" aria-hidden="true">
@@ -496,19 +525,49 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
         <div class="set-chips" id="curList" role="group" data-t-aria="curAria"></div>
         <small data-t="curNote"></small>
       </div>
-      <button class="btn set-row" id="kanjiBtn" type="button"><span data-t="kanji"></span><b id="kanjiVal"></b></button>
-      <button class="btn set-row" id="soundBtn" type="button"><span data-t="sound"></span><b id="soundVal"></b></button>
+      <div class="settings-toggles">
+      <button class="btn set-row" id="kanjiBtn" type="button"><span data-t="kanji"></span><span class="setting-state" aria-hidden="true"><span class="setting-icon" aria-hidden="true"><svg viewBox="0 0 26 26"><text x="13" y="20" text-anchor="middle" font-size="22" class="jp" fill="currentColor">漢</text><g class="setting-slash" fill="none" stroke-linecap="round"><path d="M3 3L23 23" stroke="var(--card)" stroke-width="5"/><path d="M3 3L23 23" stroke="currentColor" stroke-width="2"/></g></svg></span><span class="setting-value" id="kanjiValue"></span></span></button>
+      <button class="btn set-row" id="soundBtn" type="button"><span data-t="sound"></span><span class="setting-state" aria-hidden="true"><span class="setting-icon" aria-hidden="true"><svg viewBox="0 0 26 26"><path d="M3 10v6h5l6 5V5l-6 5z" fill="currentColor"/><path d="M18 9a6 6 0 0 1 0 8M21 6a10 10 0 0 1 0 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><g class="setting-slash" fill="none" stroke-linecap="round"><path d="M3 3L23 23" stroke="var(--card)" stroke-width="5"/><path d="M3 3L23 23" stroke="currentColor" stroke-width="2"/></g></svg></span><span class="setting-value" id="soundValue"></span></span></button>
+      </div>
       <div class="panel set">
-        <b data-t="sync"></b>
-        <div class="sync" id="sync" role="status"><i></i><span id="syncTxt"></span></div>
+        <b data-t="backupTitle"></b>
+        <small data-t="backupNote"></small>
+        <button class="btn" id="exportBtn" type="button" data-t="backupExport"></button>
+        <button class="btn" id="importBtn" type="button" data-t="backupImport"></button>
+        <input id="backupFile" type="file" accept=".json,application/json" hidden>
+        <small id="backupStatus" role="status" aria-live="polite"></small>
       </div>
       <p class="sec" data-t="howTitle"></p>
       <p class="legend" data-t="howText"></p>
       <button class="btn danger" id="resetBtn" type="button" data-t="reset"></button>
+      <div class="set" id="accountActions" hidden>
+        <button class="btn" id="authLogout" type="button" data-t="authLogout" hidden></button>
+        <small id="authStatus" class="auth-status" role="status" aria-live="polite"></small>
+      </div>
+      <div class="sync" id="sync" role="status"><i aria-hidden="true"></i><span id="syncTxt"></span></div>
       <a class="made" href="https://t.me/amuru" target="_blank" rel="noopener">made by @Amuru</a>
     </div>
   </div>
 </section>
+
+<dialog id="authDialog" class="auth-dialog" aria-labelledby="authDialogTitle">
+  <div class="auth-dialog-head"><h2 id="authDialogTitle" data-t="authTitle"></h2><button id="authClose" class="icon-btn" type="button" data-t-aria="authClose">×</button></div>
+        <form id="authForm">
+          <fieldset id="authFields" class="auth-fields">
+            <div class="set-chips" role="group" data-t-aria="authTitle">
+              <button type="button" data-auth-mode="login" data-t="authLogin" aria-pressed="true"></button>
+              <button type="button" data-auth-mode="register" data-t="authRegister" aria-pressed="false"></button>
+            </div>
+            <label><span data-t="authLoginLabel"></span><input id="authLogin" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" pattern="[A-Za-z0-9_]{3,32}" minlength="3" maxlength="32" aria-describedby="authLoginHint" required></label>
+            <small id="authLoginHint" data-t="authLoginHint"></small>
+            <label><span data-t="authCodeLabel"></span><input id="authCode" name="password" type="password" autocomplete="current-password" minlength="4" maxlength="128" aria-describedby="authCodeHint" required></label>
+            <small id="authCodeHint" data-t="authCodeHint"></small>
+            <label id="authConfirmRow" hidden><span data-t="authConfirmLabel"></span><input id="authConfirm" name="confirm" type="password" autocomplete="new-password" minlength="4" maxlength="128"></label>
+            <button class="btn btn-main" id="authSubmit" type="submit" data-t="authLogin"></button>
+          </fieldset>
+        </form>
+  <p id="authDialogStatus" class="auth-status" role="status" aria-live="polite"></p>
+</dialog>
 
 <!-- ONE LESSON -->
 <section class="screen" id="unit" hidden>
@@ -1067,6 +1126,45 @@ const MON = {
 const WDS = { ru: ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'], en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], ja: ['日', '月', '火', '水', '木', '金', '土'] };
 
 const ru = {
+  authClose: "Закрыть",
+  authTitle: "Аккаунт",
+  authGuest: "Войдите, чтобы сохранить прогресс.",
+  authLogin: "Войти",
+  authRegister: "Создать аккаунт",
+  authLoginLabel: "Логин",
+  authCodeLabel: "Секретный код",
+  authConfirmLabel: "Повторите код",
+  authLoginHint: "От 3 до 32 символов: латинские буквы, цифры и _. Регистр не важен.",
+  authCodeHint: "Постоянный код от 4 до 128 символов. Сохраните его: восстановление забытого кода пока недоступно.",
+  authWait: "Подождите…",
+  authLogout: "Выйти из аккаунта",
+  authWelcome: "Вы вошли. Прогресс аккаунта синхронизируется с сервером.",
+  authLoggedOut: "Вы вышли. Теперь отображается гостевой прогресс этого браузера.",
+  authInvalidInput: "Проверьте логин и код: логин — 3–32 латинские буквы, цифры или _, код — 4–128 символов.",
+  authWrongCode: "Неверный логин или секретный код.",
+  authLoginTaken: "Этот логин уже занят. Выберите другой.",
+  authTooMany: "Слишком много попыток. Попробуйте через 15 минут.",
+  authCodeMismatch: "Коды не совпадают. Повторите секретный код.",
+  authUnavailable: "Нет связи с сервером входа. Проверьте подключение и попробуйте снова.",
+  authExpired: "Срок входа истёк. Войдите снова: несинхронизированный прогресс сохранён в этом браузере.",
+  authChanged: "В другой вкладке сменился аккаунт. Войдите снова, чтобы продолжить синхронизацию.",
+  authRequestError: "Не удалось выполнить запрос. Обновите страницу и попробуйте снова.",
+  authUnsaved: "Последний прогресс ещё не отправлен. Проверьте связь и повторите выход.",
+  authGuestImported: "Гостевой прогресс автоматически добавлен в аккаунт.",
+  authSignedIn: login => `Вход выполнен: ${login}`,
+  authCached: login => `${login} · требуется вход`,
+  backupTitle: "Резервная копия",
+  backupNote: "Сохраните прогресс в файл, чтобы перенести его в другой браузер или на другое устройство. Настройки остаются на устройстве.",
+  backupExport: "Сохранить в файл",
+  backupImport: "Восстановить из файла",
+  backupExported: "Файл прогресса подготовлен для скачивания.",
+  backupExportError: "Не удалось создать файл прогресса.",
+  backupInvalid: "Не удалось прочитать копию Nihongo jouzu. Выберите корректный файл JSON размером до 5 МБ.",
+  backupRestoreTitle: "Восстановить прогресс?",
+  backupRestoreText: "Слова, грамматика, XP, серия и пройденные темы будут заменены данными из файла. При включённой синхронизации замена затронет и другие устройства. Сначала сохраните текущий прогресс в файл.",
+  backupRestoreYes: "Заменить прогресс",
+  backupRestored: "Прогресс восстановлен и сохранён.",
+  backupSaveError: "Не удалось сохранить прогресс в браузере. Текущий прогресс не изменён.",
   langName: 'Русский',
   // tabs and static parts
   tabs: 'Разделы', tabHome: 'Главная', tabDict: 'Словарь', tabProfile: 'Профиль',
@@ -1085,8 +1183,8 @@ const ru = {
   lvNewWord: 'новое слово', lvNewTask: 'новое задание', lv: ['на повторении', 'учится', 'учится', 'выучено'],
   dueToday: 'повторить сегодня', dueTomorrow: 'повтор завтра', dueIn: d => `повтор через ${d} ${ruP(d, 'день', 'дня', 'дней')}`,
   levelAria: n => `уровень ${n} из 3`, say: 'Произнести', passedAria: 'пройдено без ошибок',
-  syncLocal: 'Прогресс хранится только на этом устройстве', syncLoading: 'Синхронизация…', syncSaving: 'Сохраняю в облако…',
-  syncOk: 'Синхронизировано между твоими устройствами', syncStale: 'Нет связи с облаком. Прогресс сохранён на устройстве и отправится позже',
+  syncLocal: 'Прогресс хранится только на этом устройстве', syncLoading: 'Синхронизация…', syncSaving: 'Сохраняю в сервер…',
+  syncOk: 'Синхронизировано между твоими устройствами', syncStale: 'Нет связи с серверм. Прогресс сохранён на устройстве и отправится позже',
   syncError: 'Синхронизация недоступна. Прогресс сохранён на этом устройстве',
   // home
   streakAria: n => `Серия: ${n} ${ruP(n, 'день', 'дня', 'дней')}`,
@@ -1145,6 +1243,45 @@ const ru = {
 };
 
 const en = {
+  authClose: "Close",
+  authTitle: "Account",
+  authGuest: "Sign in to save your progress.",
+  authLogin: "Sign in",
+  authRegister: "Create account",
+  authLoginLabel: "Login",
+  authCodeLabel: "Secret code",
+  authConfirmLabel: "Repeat code",
+  authLoginHint: "3–32 characters: Latin letters, numbers and _. Not case-sensitive.",
+  authCodeHint: "A permanent code of 4–128 characters. Keep it safe: forgotten code recovery is not available yet.",
+  authWait: "Please wait…",
+  authLogout: "Sign out",
+  authWelcome: "You are signed in. Your account progress is syncing with the server.",
+  authLoggedOut: "You are signed out. This browser’s guest progress is now shown.",
+  authInvalidInput: "Check your login and code: login uses 3–32 Latin letters, numbers or _, code uses 4–128 characters.",
+  authWrongCode: "Incorrect login or secret code.",
+  authLoginTaken: "This login is taken. Choose another.",
+  authTooMany: "Too many attempts. Try again in 15 minutes.",
+  authCodeMismatch: "The codes do not match. Repeat your secret code.",
+  authUnavailable: "Cannot reach the sign-in server. Check your connection and try again.",
+  authExpired: "Your session expired. Sign in again: unsynced progress is kept in this browser.",
+  authChanged: "The account changed in another tab. Sign in again to continue syncing.",
+  authRequestError: "Could not complete the request. Reload the page and try again.",
+  authUnsaved: "Your latest progress has not been sent. Check your connection and try signing out again.",
+  authGuestImported: "Guest progress automatically added to your account.",
+  authSignedIn: login => `Signed in as ${login}`,
+  authCached: login => `${login} · sign-in required`,
+  backupTitle: "Progress backup",
+  backupNote: "Save progress to a file to move it to another browser or device. Settings stay on this device.",
+  backupExport: "Save to file",
+  backupImport: "Restore from file",
+  backupExported: "Your progress file is ready to download.",
+  backupExportError: "Could not create a progress file.",
+  backupInvalid: "Could not read this Nihongo jouzu backup. Choose a valid JSON backup up to 5 MB.",
+  backupRestoreTitle: "Restore progress?",
+  backupRestoreText: "Words, grammar, XP, streak and completed topics will be replaced by the file. If sync is enabled, this also replaces progress on other devices. Save your current progress to a file first.",
+  backupRestoreYes: "Replace progress",
+  backupRestored: "Progress restored and saved.",
+  backupSaveError: "Could not save progress in this browser. Your current progress has not changed.",
   langName: 'English',
   tabs: 'Sections', tabHome: 'Home', tabDict: 'Dictionary', tabProfile: 'Profile',
   streakChip: 'Day streak', totalXp: 'Total XP', today: 'Today', mistTitle: 'Fix your mistakes', lessons: 'Lessons',
@@ -1213,6 +1350,45 @@ const en = {
 };
 
 const ja = {
+  authClose: "とじる",
+  authTitle: "アカウント",
+  authGuest: "しんちょくを ほぞんするには ログインしてください。",
+  authLogin: "ログイン",
+  authRegister: "アカウントを つくる",
+  authLoginLabel: "ログイン名",
+  authCodeLabel: "ひみつの コード",
+  authConfirmLabel: "もういちど コード",
+  authLoginHint: "3〜32文字の アルファベット、数字、_ が つかえます。大文字と 小文字は おなじです。",
+  authCodeHint: "いつも つかう 4〜128文字の コードです。わすれないように ほぞんしてください。まだ コードの さいせっていは できません。",
+  authWait: "おまちください…",
+  authLogout: "ログアウト",
+  authWelcome: "ログインしました。しんちょくを サーバーと どうきしています。",
+  authLoggedOut: "ログアウトしました。この ブラウザーの ゲストの しんちょくを ひょうじしています。",
+  authInvalidInput: "ログイン名と コードを かくにんしてください。ログイン名は 3〜32文字、コードは 4〜128文字です。",
+  authWrongCode: "ログイン名か コードが ちがいます。",
+  authLoginTaken: "この ログイン名は つかわれています。ほかの 名前を えらんでください。",
+  authTooMany: "しばらく おまちください。15分後に もういちど おためしください。",
+  authCodeMismatch: "コードが おなじでは ありません。もういちど 入れてください。",
+  authUnavailable: "サーバーに つながりません。せつぞくを かくにんして もういちど おためしください。",
+  authExpired: "もういちど ログインしてください。まだ おくっていない しんちょくは この ブラウザーに あります。",
+  authChanged: "ほかの タブで アカウントが かわりました。もういちど ログインしてください。",
+  authRequestError: "できませんでした。ページを よみなおして もういちど おためしください。",
+  authUnsaved: "まだ しんちょくを おくれていません。せつぞくを かくにんして もういちど ログアウトしてください。",
+  authGuestImported: "ゲストの しんちょくを アカウントに じどうで くわえました。",
+  authSignedIn: login => `ログイン中: ${login}`,
+  authCached: login => `${login} · ログインしてください`,
+  backupTitle: "バックアップ",
+  backupNote: "しんちょくを ファイルに ほぞんして、ほかの ブラウザーや デバイスに うつせます。せっていは この デバイスに のこります。",
+  backupExport: "ファイルに ほぞん",
+  backupImport: "ファイルから もどす",
+  backupExported: "ダウンロードする ファイルが できました。",
+  backupExportError: "ファイルを つくれませんでした。",
+  backupInvalid: "Nihongo jouzu の バックアップを よめません。5 MB までの ただしい JSON ファイルを えらんでください。",
+  backupRestoreTitle: "しんちょくを もどしますか？",
+  backupRestoreText: "ことば、ぶんぽう、XP、れんぞく日数、クリアした テーマを ファイルの データに おきかえます。どうきが オンなら、ほかの デバイスも かわります。まず いまの しんちょくを ファイルに ほぞんしてください。",
+  backupRestoreYes: "おきかえる",
+  backupRestored: "しんちょくを もどして ほぞんしました。",
+  backupSaveError: "ブラウザーに ほぞんできませんでした。いまの しんちょくは かわっていません。",
   langName: '日本語',
   tabs: 'メニュー', tabHome: 'ホーム', tabDict: 'じしょ', tabProfile: 'プロフィール',
   streakChip: 'れんぞく にっすう', totalXp: 'ごうけい XP', today: 'きょう', mistTitle: 'まちがいの ふくしゅう', lessons: 'レッスン',
@@ -1280,6 +1456,51 @@ const ja = {
   resetTitle: 'しんちょくを リセット しますか？', resetText: 'れんぞく・XP・おぼえた ことば・クリアした トピックが ぜんぶの デバイスから きえます。', resetYes: 'リセット', resetNo: 'キャンセル'
 };
 return { ru, en, ja };
+})();
+// Portable progress only: preferences and the current device identity stay local.
+window.TANGO_BACKUP = (() => {
+  const MAX_BYTES = 5 * 1024 * 1024;
+  const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const integer = value => Number.isSafeInteger(value) && value >= 0;
+  const date = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+  const assert = condition => { if (!condition) throw new Error('Invalid progress backup'); };
+  function validate(s) {
+    assert(object(s) && s.v === 2 && integer(s.epoch));
+    for (const key of ['words', 'dev', 'days', 'passed']) assert(object(s[key]));
+    for (const r of Object.values(s.words)) {
+      assert(object(r) && integer(r.b) && r.b <= 7 && integer(r.due) && integer(r.t));
+      assert(r.m === undefined || r.m === 1);
+    }
+    for (const r of Object.values(s.dev)) {
+      assert(object(r) && integer(r.t) && object(r.d));
+      for (const [day, xp] of Object.entries(r.d)) assert(date(day) && integer(xp));
+    }
+    for (const [day, value] of Object.entries(s.days)) assert(date(day) && value === 1);
+    for (const day of Object.values(s.passed)) assert(date(day));
+    return s;
+  }
+  function parse(text) {
+    assert(typeof text === 'string' && new TextEncoder().encode(text).length <= MAX_BYTES);
+    const file = JSON.parse(text, (key, value) => {
+      assert(!['__proto__', 'constructor', 'prototype'].includes(key));
+      return value;
+    });
+    assert(object(file) && file.app === 'genki-drill' && file.version === 1);
+    return validate(file.progress);
+  }
+  function stringify(progress) {
+    const text = JSON.stringify({ app: 'genki-drill', version: 1, exportedAt: new Date().toISOString(), progress }, null, 2);
+    parse(text); // Never export a backup that this version cannot restore.
+    return text;
+  }
+  function restore(progress, currentEpoch, now = Date.now()) {
+    const copy = parse(stringify(progress));
+    // Explicit replacement wins over older copies, including a previous reset.
+    copy.epoch = Math.max(now, currentEpoch + 1, copy.epoch + 1);
+    return validate(copy);
+  }
+  return { MAX_BYTES, parse, stringify, restore };
 })();
 // Frozen word order of the first release (progress was keyed "topic:index" then). Used once, to carry old progress over. Never edit.
 window.TANGO_LEGACY_V1 = {"week":["にちようび|日曜日","げつようび|月曜日","かようび|火曜日","すいようび|水曜日","もくようび|木曜日","きんようび|金曜日","どようび|土曜日"],"dates":["ついたち|1日","ふつか|2日","みっか|3日","よっか|4日","いつか|5日","むいか|6日","なのか|7日","ようか|8日","ここのか|9日","とおか|10日","じゅういちにち|11日","じゅうににち|12日","じゅうさんにち|13日","じゅうよっか|14日","じゅうごにち|15日","じゅうろくにち|16日","じゅうしちにち|17日","じゅうはちにち|18日","じゅうくにち|19日","はつか|20日","にじゅういちにち|21日","にじゅうににち|22日","にじゅうさんにち|23日","にじゅうよっか|24日","にじゅうごにち|25日","にじゅうろくにち|26日","にじゅうしちにち|27日","にじゅうはちにち|28日","にじゅうくにち|29日","さんじゅうにち|30日","さんじゅういちにち|31日"],"months":["いちがつ|一月","にがつ|二月","さんがつ|三月","しがつ|四月","ごがつ|五月","ろくがつ|六月","しちがつ|七月","はちがつ|八月","くがつ|九月","じゅうがつ|十月","じゅういちがつ|十一月","じゅうにがつ|十二月"],"time":["おととい|","きのう|昨日","きょう|今日","あした|明日","あさって|","にしゅうかんまえ|二週間前","せんしゅう|先週","こんしゅう|今週","らいしゅう|来週","さらいしゅう|再来週","にかげつまえ|二か月前","せんげつ|先月","こんげつ|今月","らいげつ|来月","さらいげつ|再来月","おととし|","きょねん|去年","ことし|今年","らいねん|来年","さらいねん|再来年"],"nouns":["たべもの|食べ物","のみもの|飲み物","くだもの|果物","やすみ|休み","りょこう|旅行","うみ|海","サーフィン|","おみやげ|お土産","バス|","てんき|天気","しゅくだい|宿題","テスト|","たんじょうび|誕生日","へや|部屋","ぼく|僕","Ｌサイズ|"],"iadj":["あたらしい|新しい","ふるい|古い","あつい|暑い","さむい|寒い","あつい|熱い","いそがしい|忙しい","おおきい|大きい","ちいさい|小さい","おもしろい|面白い","つまらない|","やさしい|","むずかしい|難しい","かっこいい|","こわい|怖い","かわいい|","たのしい|楽しい","やすい|安い","たかい|高い"],"naadj":["すき|好き","きらい|嫌い","だいすき|大好き","だいきらい|大嫌い","きれい|","げんき|元気","しずか|静か","にぎやか|","ひま|暇"],"verbs":["およぐ|泳ぐ","きく|聞く","のる|乗る","やる|","でかける|出かける"],"adv":["いっしょに|一緒に","すごく|","とても|","だいじょうぶ|大丈夫","どんな|","〜まい|〜枚","〜さつ|〜冊"]};
@@ -1377,7 +1598,10 @@ COURSE.forEach(l => (l.drills || []).forEach(d => {
 // ---------- State ----------
 // S is the synced progress: words[id] = {b: box 0..7, due: day number, t: changed-at ms, m: 1 if in "mistakes"} (grammar drill items live here too),
 // dev[deviceId] = {t: total XP earned on that device, d: {date: XP}}, days = {date: 1} with a finished lesson, passed = {topicId: date}.
-const KEY = 'tango-drill-v2', KEY_V1 = 'tango-drill-v1', KEY_PREF = 'tango-drill-pref';
+const KEY = 'tango-drill-v2', KEY_V1 = 'tango-drill-v1', KEY_PREF = 'tango-drill-pref', KEY_ACCOUNT = 'tango-account';
+const cachedAccount = ls.get(KEY_ACCOUNT);
+let account = cachedAccount && /^[a-f0-9]{32}$/.test(cachedAccount.id) && typeof cachedAccount.login === 'string' ? cachedAccount : null;
+let storageKey = account ? KEY + ':' + account.id : KEY;
 const PREF = Object.assign({ sound: true, kanji: true, dev: 'd' + Math.random().toString(36).slice(2, 10) }, ls.get(KEY_PREF) || {});
 ls.set(KEY_PREF, PREF);
 const DEV = PREF.dev;
@@ -1427,7 +1651,7 @@ function migrateV1(o) {
   Object.assign(s.passed, o.passed || {});
   return sanitize(s);
 }
-let S = sanitize(ls.get(KEY)) || (ls.get(KEY_V1) ? migrateV1(ls.get(KEY_V1)) : fresh());
+let S = sanitize(ls.get(storageKey)) || (!account && ls.get(KEY_V1) ? migrateV1(ls.get(KEY_V1)) : fresh());
 const canon = o => JSON.stringify(o, (k, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.keys(v).sort().reduce((a, x) => (a[x] = v[x], a), {}) : v);
 // Two copies of the progress (this device and the cloud) merge field by field: the newer answer per word wins, XP adds up per device.
 function merge(a, b) {
@@ -1443,7 +1667,7 @@ function merge(a, b) {
   for (const k of new Set([...Object.keys(a.passed), ...Object.keys(b.passed)])) o.passed[k] = [a.passed[k], b.passed[k]].filter(Boolean).sort()[0];
   return o;
 }
-const save = (soon) => { ls.set(KEY, S); schedulePush(soon ? 300 : 4000); };
+const save = (soon) => { ls.set(storageKey, S); schedulePush(soon ? 300 : 4000); };
 
 // derived
 const rec = w => S.words[w.id] || null;
@@ -1502,52 +1726,137 @@ function curLesson() {
   return (started.length ? started[started.length - 1] : COURSE[0]).id;
 }
 
-// ---------- Sync between devices (private per account) ----------
-let ref = null, lastRemote = null, pushTimer = 0, pushing = false, dirty = false, syncState = 'local';
+// ---------- Accounts and per-user progress ----------
+let pushTimer = 0, pushing = false, dirty = false, syncState = 'local';
+let authVerified = false, authBusy = true, authMode = 'login', authMessage = '', accountGeneration = 0;
 const SYNC_TEXT = {
-  local: ['', 'syncLocal'],
-  loading: ['warn', 'syncLoading'],
-  saving: ['warn', 'syncSaving'],
-  ok: ['ok', 'syncOk'],
-  stale: ['warn', 'syncStale'],
-  error: ['', 'syncError']
+  local: ['', 'syncLocal'], loading: ['warn', 'syncLoading'], saving: ['warn', 'syncSaving'],
+  ok: ['ok', 'syncOk'], stale: ['warn', 'syncStale'], error: ['', 'syncError']
 };
 function setSync(s) { syncState = s; $('sync').className = 'sync ' + SYNC_TEXT[s][0]; $('syncTxt').textContent = t(SYNC_TEXT[s][1]); }
-function schedulePush(delay) { if (!ref) return; dirty = true; clearTimeout(pushTimer); pushTimer = setTimeout(push, delay); if (syncState === 'ok') setSync('saving'); }
-async function push(retry) {
-  if (!ref || pushing || !dirty) return;
-  pushing = true; dirty = false;
-  const body = JSON.parse(JSON.stringify(S)), c = canon(body);
-  try { await ref.set(body); lastRemote = c; setSync('ok'); }
-  catch (e) {
-    if (e && e.code === 'unavailable' && !retry) { pushing = false; dirty = true; setTimeout(() => push(true), 1500 + Math.random() * 1500); return; }
-    setSync(e && e.code === 'unavailable' ? 'stale' : 'error');
+async function api(path, method = 'GET', body, userId) {
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch('/api/' + path, {
+      method, credentials: 'same-origin', signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', 'X-Nihongo-Request': '1', ...(userId ? { 'X-Nihongo-User': userId } : {}) },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) })
+    });
+    let data;
+    try { data = await response.json(); } catch (_) { throw { key: 'authUnavailable' }; }
+    if (!response.ok) throw { key: data.error || 'authUnavailable', status: response.status, data };
+    return data;
+  } catch (e) { if (e.key) throw e; throw { key: 'authUnavailable' }; }
+  finally { clearTimeout(timer); }
+}
+function guestProgress() { return sanitize(ls.get(KEY)) || fresh(); }
+function hasProgress(s) { return Object.keys(s.words).length || Object.keys(s.dev).length || Object.keys(s.days).length || Object.keys(s.passed).length; }
+function importGuestProgress() {
+  const guest = guestProgress(), devices = {};
+  // Keep guest XP separate from XP earned in the account.
+  for (const [id, value] of Object.entries(guest.dev)) devices[`guest:${guest.epoch}:${id}`] = value;
+  S = merge(S, { ...guest, epoch: S.epoch, dev: devices });
+  save(true);
+}
+function renderAccount() {
+  const signedIn = !!account && authVerified;
+  $('accountPanel').classList.toggle('guest', !signedIn);
+  $('accountPanel').hidden = signedIn;
+  $('accountActions').hidden = !signedIn;
+  $('profileTitle').textContent = signedIn ? t('profile') + ' ' + account.login : t('profile');
+  $('authOpen').hidden = signedIn;
+  $('authOpen').disabled = authBusy;
+  $('accountName').textContent = account ? t(authVerified ? 'authSignedIn' : 'authCached', account.login) : t('authGuest');
+  $('authForm').hidden = !!account && authVerified;
+  $('authFields').disabled = authBusy;
+  $('authLogout').hidden = !signedIn;
+  $('authLogout').disabled = authBusy;
+  $('authConfirmRow').hidden = authMode !== 'register';
+  $('authConfirm').required = authMode === 'register';
+  $('authCode').autocomplete = authMode === 'register' ? 'new-password' : 'current-password';
+  $('authSubmit').textContent = t(authBusy ? 'authWait' : authMode === 'register' ? 'authRegister' : 'authLogin');
+  $('authStatus').textContent = signedIn && authMessage ? t(authMessage) : '';
+  $('authDialogStatus').textContent = authMessage ? t(authMessage) : '';
+  document.querySelectorAll('[data-auth-mode]').forEach(b => { b.disabled = authBusy; b.setAttribute('aria-pressed', String(b.dataset.authMode === authMode)); });
+}
+function activateAccount(data) {
+  clearTimeout(pushTimer); accountGeneration++;
+  account = data ? data.user : null;
+  authVerified = !!account; dirty = false;
+  storageKey = account ? KEY + ':' + account.id : KEY;
+  const cached = sanitize(ls.get(storageKey));
+  S = account ? merge(cached || fresh(), sanitize(data.progress) || fresh()) : guestProgress();
+  ls.set(KEY_ACCOUNT, account); ls.set(storageKey, S);
+  profSeen = null;
+  $('backupStatus').textContent = '';
+  authMode = 'login';
+  $('authDialog').close();
+  $('authForm').reset();
+  // Account changes end any lesson still displaying another user's data.
+  renderHome(); renderProfile(); show('profile');
+  setSync(account ? 'loading' : 'local');
+  if (account) schedulePush(0);
+}
+function schedulePush(delay) {
+  if (!account) return;
+  dirty = true;
+  if (!authVerified) return;
+  clearTimeout(pushTimer); pushTimer = setTimeout(push, delay);
+  if (syncState === 'ok') setSync('saving');
+}
+async function push() {
+  if (!account || !authVerified || pushing) return;
+  const generation = accountGeneration, userId = account.id;
+  const current = () => generation === accountGeneration && account && account.id === userId;
+  pushing = true;
+  try {
+    let remote = await api('progress', 'GET', undefined, userId);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (!current()) return;
+      const merged = merge(S, sanitize(remote.progress) || fresh());
+      if (canon(S) !== canon(merged)) { S = merged; ls.set(storageKey, S); refresh(); }
+      if (remote.progress && canon(S) === canon(remote.progress)) { dirty = false; setSync('ok'); return; }
+      const sent = JSON.parse(JSON.stringify(S));
+      dirty = false; setSync('saving');
+      try {
+        await api('progress', 'PUT', { progress: sent, revision: remote.revision }, userId);
+        if (!current()) return;
+        dirty = canon(S) !== canon(sent);
+        setSync(dirty ? 'saving' : 'ok');
+        return;
+      } catch (e) {
+        if (e.key !== 'progressConflict') throw e;
+        remote = e.data;
+      }
+    }
+    if (current()) { dirty = true; setSync('stale'); }
+  } catch (e) {
+    if (!current()) return;
+    dirty = true;
+    if (e.key === 'authExpired' || e.key === 'authChanged') {
+      authVerified = false; authMessage = e.key; renderAccount(); setSync('error');
+    } else setSync('stale');
+  } finally {
+    pushing = false;
+    if (account && authVerified && (dirty || generation !== accountGeneration)) {
+      clearTimeout(pushTimer); pushTimer = setTimeout(push, 4000);
+    }
   }
-  pushing = false;
-  if (dirty) { clearTimeout(pushTimer); pushTimer = setTimeout(push, 1500); }
 }
 async function initSync() {
-  if (!window.claude || !window.claude.use) return;
-  const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
-  const uid = db && user ? await user.id() : null;
-  if (!uid) return; // signed out or unavailable here: stay local
-  ref = db.doc('data/users/' + uid + '/progress');
-  setSync('loading');
-  let timer = setTimeout(() => { if (syncState === 'loading') setSync('stale'); }, 10000);
-  ref.onSnapshot(snap => {
-    if (snap.metadata && snap.metadata.hasPendingWrites) return; // our own write, not yet confirmed
-    const remote = snap.exists ? sanitize(snap.data()) : null;
-    if (!snap.metadata || !snap.metadata.fromCache) { clearTimeout(timer); timer = 0; }
-    lastRemote = remote ? canon(remote) : '';
-    if (remote) {
-      const m = merge(S, remote);
-      if (canon(m) !== canon(S)) { S = m; ls.set(KEY, S); refresh(); }
-    }
-    const empty = !S.epoch && !Object.keys(S.words).length && !Object.keys(S.dev).length; // nothing to store yet: no write on a first visit
-    if (canon(S) !== lastRemote && !(empty && !remote)) schedulePush(300); else if (!dirty && !pushing) setSync(snap.metadata && snap.metadata.fromCache ? 'loading' : 'ok');
-  }, () => { clearTimeout(timer); ref = null; setSync('error'); });
+  try {
+    const data = await api('session');
+    if (data.user) {
+      const oldScreen = screen;
+      activateAccount(data);
+      if (oldScreen === 'home') goHome();
+    } else if (account) { authMessage = 'authExpired'; setSync('error'); }
+  } catch (_) { authMessage = 'authUnavailable'; if (account) setSync('stale'); }
+  finally { authBusy = false; renderAccount(); }
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && dirty) { clearTimeout(pushTimer); push(); } });
+setInterval(() => { if (document.visibilityState === 'visible') push(); }, 30000);
+addEventListener('online', () => { if (!authBusy) { if (authVerified) push(); else initSync(); } });
+document.addEventListener('visibilitychange', () => { if (authVerified) push(); });
 
 // ---------- Sound, voice, haptics ----------
 let actx;
@@ -1631,6 +1940,7 @@ function renderHome() {
 // afterwards just the parts that changed (more XP, a new streak day, words that moved). Opening it again with nothing new shows it still.
 let profSeen = null;
 function renderProfile() {
+  renderAccount();
   const n = streak(), tx = todayXp(), cur = curLesson(), arc = $('ringArc'), xp = totalXp(), prev = profSeen;
   const g0 = prev ? Math.min(prev.tx, GOAL) : 0, g1 = Math.min(tx, GOAL), off = g => String(194.8 * (1 - g / GOAL));
   if (g0 !== g1 && !calm()) {
@@ -1660,9 +1970,11 @@ function renderProfile() {
   hd.append(el('span', '', t('learnedOf', ac.done, WORDS.length)), el('small', '', pct(WORDS) + '%'));
   [['done', t('lgDone'), ac.done], ['part', t('lgPart'), ac.part], ['', t('lgNew'), ac.fresh]].forEach(([k, l, c]) => { const s = el('span'); s.append(el('i', k), `${l}: ${c}`); lg.append(s); });
   ap.append(hd, segBar(WORDS, lvChanged ? (prev ? w => prev.lv[w.id] || 0 : () => 0) : null), lg);
-  $('soundVal').textContent = t(PREF.sound ? 'on' : 'off'); $('soundVal').className = PREF.sound ? '' : 'off';
-  $('kanjiVal').textContent = t(PREF.kanji !== false ? 'on' : 'off');
-  document.querySelectorAll('#langList button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang()))); $('kanjiVal').className = PREF.kanji !== false ? '' : 'off';
+  $('soundValue').textContent = t(PREF.sound ? 'on' : 'off').toUpperCase();
+  $('kanjiValue').textContent = t(PREF.kanji !== false ? 'on' : 'off').toUpperCase();
+  $('soundBtn').setAttribute('aria-pressed', String(!!PREF.sound));
+  $('kanjiBtn').setAttribute('aria-pressed', String(PREF.kanji !== false));
+  document.querySelectorAll('#langList button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang())));
 }
 
 // ---------- XP by day chart (profile) ----------
@@ -2250,6 +2562,90 @@ function sheet(title, text, yes, no, onYes) {
 }
 
 // ---------- Wiring ----------
+$('authOpen').onclick = () => {
+  authMode = 'login'; authMessage = ''; renderAccount();
+  $('authDialog').showModal(); $('authLogin').focus();
+};
+$('authClose').onclick = () => $('authDialog').close();
+$('authDialog').addEventListener('close', () => {
+  $('authCode').value = ''; $('authConfirm').value = '';
+});
+document.querySelectorAll('[data-auth-mode]').forEach(b => { b.onclick = () => {
+  authMode = b.dataset.authMode; authMessage = '';
+  $('authCode').value = ''; $('authConfirm').value = ''; renderAccount();
+}; });
+$('authForm').onsubmit = async e => {
+  e.preventDefault();
+  if (authBusy) return;
+  if (authMode === 'register' && $('authCode').value !== $('authConfirm').value) {
+    authMessage = 'authCodeMismatch'; renderAccount(); $('authConfirm').focus(); return;
+  }
+  const registering = authMode === 'register';
+  const body = { login: $('authLogin').value.trim(), code: $('authCode').value };
+  authBusy = true; authMessage = ''; renderAccount();
+  try {
+    const data = await api(authMode, 'POST', body);
+    activateAccount(data);
+    if (registering && hasProgress(guestProgress())) {
+      importGuestProgress(); authMessage = 'authGuestImported'; renderProfile();
+    } else authMessage = 'authWelcome';
+  } catch (e) { authMessage = e.key; }
+  finally {
+    $('authCode').value = ''; $('authConfirm').value = '';
+    authBusy = false; renderAccount();
+  }
+};
+$('authLogout').onclick = async () => {
+  if (authBusy) return;
+  authBusy = true; authMessage = ''; renderAccount();
+  try {
+    // Finish an outstanding write before invalidating its session.
+    for (let i = 0; pushing && i < 100; i++) await new Promise(resolve => setTimeout(resolve, 100));
+    if (pushing) throw { key: 'authUnavailable' };
+    if (authVerified) {
+      await push();
+      if (dirty && authVerified) throw { key: 'authUnsaved' };
+    }
+    await api('logout', 'POST', {});
+    activateAccount(null); authMessage = 'authLoggedOut';
+  } catch (e) { authMessage = e.key; }
+  finally { authBusy = false; renderAccount(); }
+};
+const backupStatus = key => { $('backupStatus').textContent = t(key); };
+$('exportBtn').onclick = () => {
+  try {
+    const data = window.TANGO_BACKUP.stringify(S);
+    const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+    const a = el('a'); a.href = url; a.download = `nihongo-jouzu-${dayKey()}.json`;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    backupStatus('backupExported');
+  } catch (e) { backupStatus('backupExportError'); }
+};
+$('importBtn').onclick = () => { $('backupFile').value = ''; $('backupFile').click(); };
+$('backupFile').onchange = async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const owner = storageKey;
+  $('importBtn').disabled = true;
+  let progress;
+  try {
+    if (file.size > window.TANGO_BACKUP.MAX_BYTES) throw new Error('File too large');
+    progress = window.TANGO_BACKUP.parse(await file.text());
+  } catch (e) { backupStatus('backupInvalid'); return; }
+  finally { $('backupFile').value = ''; $('importBtn').disabled = false; }
+  sheet(t('backupRestoreTitle'), t('backupRestoreText'), t('backupRestoreYes'), t('resetNo'), () => {
+    try {
+      if (owner !== storageKey) throw new Error('Account changed');
+      const restored = window.TANGO_BACKUP.restore(progress, S.epoch);
+      // Persist first: a quota/privacy failure must leave the current state intact.
+      localStorage.setItem(storageKey, JSON.stringify(restored));
+      S = restored;
+      schedulePush(300);
+      refresh();
+      backupStatus('backupRestored');
+    } catch (e) { backupStatus('backupSaveError'); }
+  });
+};
 act.onclick = () => { if (L.action === 'check') check(); else if (L.action === 'next') next(); };
 $('quitBtn').onclick = () => sheet(t('quitTitle'), t('quitText'), t('quitYes'), t('quitNo'), () => { if (canSpeak) try { speechSynthesis.cancel(); } catch (e) {} goBack(); });
 $('smartBtn').onclick = () => startSmart();
@@ -2307,8 +2703,8 @@ addEventListener('keydown', e => {
   if (e.key === 'Backspace' && L.built && L.built.length && L.redraw) { e.preventDefault(); L.built.pop(); L.redraw(); }
 });
 if (location.hash === '#debug') window.__tango = { L, DRILLS, WORDS, state: () => S }; // for automated checks
-ls.set(KEY, S);
-localizeWords(); applyStatic(); setSync('local');
+ls.set(storageKey, S);
+localizeWords(); applyStatic(); setSync('local'); renderAccount();
 renderHome();
 initSync().catch(() => setSync('error'));
 })();
