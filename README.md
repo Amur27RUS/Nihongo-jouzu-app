@@ -1,25 +1,25 @@
 # 🇯🇵 Nihongo jouzu · Nihongo-jouzu-app
 
-Мобильное приложение для зубрёжки японских слов и грамматики по учебнику **Genki I** — в стиле Duolingo.
+A mobile-friendly app for drilling Japanese vocabulary and grammar from **Genki I**, with Duolingo-style practice.
 
-> 日本語上手！ — «Ты так хорошо говоришь по-японски!»
+> 日本語上手！ — “Your Japanese is so good!”
 
-## ✨ Что умеет
+## ✨ Features
 
-- **Уроки и темы**: Основы (числа), Урок 1, 3, 4, 5 — 263 слова.
-- **Тренировки как в Duolingo**: жизни, XP, комбо, серия дней. Тема считается пройденной только без единой ошибки.
-- **Знакомство с новым словом** перед первым вопросом.
-- **Интервальное повторение**: 1 → 3 → 7 → 14 → 30 → 60 дней.
-- **Грамматика**: конспекты в виде сторис (листаются тапом) и упражнения — пропуски, порядок слов, спряжение глаголов и прилагательных, 〜ましょう / 〜ませんか.
-- **Словарь** с поиском и выбором урока, переключатель «Показывать кандзи» 漢字.
-- **Профиль**: серия, общий XP, график опыта по дням (7 / 14 / 30 дней), язык интерфейса — русский, английский, японский.
-- **Аккаунты**: регистрация и вход по логину и постоянному секретному коду, выход через профиль. Прогресс каждого аккаунта хранится отдельно в SQLite и синхронизируется между устройствами.
-- Светлая и тёмная тема.
-- **Резервная копия прогресса**: сохранение в JSON и восстановление на другом устройстве через профиль.
+- **Lessons and topics**: Basics (numbers) and Lessons 1, 3, 4, and 5 — 263 words.
+- **Duolingo-style practice**: hearts, XP, combos, and daily streaks. A topic is completed only after a mistake-free run.
+- **New-word introductions** before the first question.
+- **Spaced repetition**: 1 → 3 → 7 → 14 → 30 → 60 days.
+- **Grammar**: tap-through notes and exercises covering fill-in-the-blank questions, word order, verb and adjective conjugation, and 〜ましょう / 〜ませんか.
+- **Dictionary** with search, lesson filters, and a “Show kanji” toggle.
+- **Profile**: streak, total XP, daily XP charts (7 / 14 / 30 days), and Russian, English, or Japanese interface language.
+- **Accounts**: registration and sign-in with a username and a permanent secret code, with sign-out available in the profile. Each account has separate progress stored in SQLite and synced across devices.
+- Light and dark themes.
+- **Progress backups**: export to JSON and restore on another device from the profile.
 
-## 🚀 Как открыть
+## 🚀 Getting started
 
-Для входа и синхронизации запустите приложение вместе с сервером (Python 3.9+):
+To use accounts and progress sync, run the app with its backend (Python 3.9+):
 
 ```sh
 python3 -m venv .venv
@@ -28,102 +28,110 @@ python3 tools/build.py
 .venv/bin/python -m server.app
 ```
 
-Откройте `http://127.0.0.1:8765/`, затем **Профиль → Войти → Создать аккаунт**. Логин — 3–32 латинские буквы, цифры или `_` (регистр не важен); постоянный секретный код — 4–128 символов. При регистрации повторите код. Восстановление забытого кода пока не реализовано.
+Open `http://127.0.0.1:8765/`, then go to **Profile → Sign in → Create account**. Usernames must contain 3–32 Latin letters, digits, or underscores (`_`), and are case-insensitive. Permanent secret codes must contain 4–128 characters and must be entered twice during registration. Self-service recovery for forgotten codes is not yet available.
 
-Сервер хранит аккаунты, сессии и прогресс в `instance/nihongo.sqlite3`. Файл и локальное окружение исключены из Git. Коды хранятся как PBKDF2-HMAC-SHA256 с отдельной случайной солью (600 000 итераций); сессии — случайные токены в HttpOnly/SameSite cookie с истечением через 30 дней. Повторные попытки входа ограничены на сервере.
+The backend stores accounts, sessions, and progress in `instance/nihongo.sqlite3`. This file and the local Python environment are excluded from Git. Codes are stored using PBKDF2-HMAC-SHA256 with individual random salts and 600,000 iterations. Sessions use random tokens in HttpOnly/SameSite cookies and expire after 30 days. The server rate-limits repeated sign-in attempts.
 
-Гостевой прогресс остаётся в браузере. При создании аккаунта гостевой прогресс автоматически добавляется в него. При входе в существующий аккаунт гостевой прогресс не переносится. Выход возвращает гостевой профиль. Локальные копии аккаунтов разделены по идентификатору, сохраняются при потере связи и отправляются при восстановлении соединения. Если сессия истекла, нужен повторный вход. Синхронизация проверяется после ответов, при возвращении в приложение и раз в 30 секунд в открытой вкладке. Сервер отклоняет устаревшую версию записи, клиент объединяет прогресс и повторяет запрос.
+Guest progress stays in the browser. Creating an account automatically imports guest progress; signing in to an existing account does not. Signing out returns to the guest profile. Local account caches are separated by user ID, retain changes while offline, and sync when the connection returns. Expired sessions require signing in again. Sync runs after answers, when returning to the app, and every 30 seconds while the tab is open. The server rejects outdated revisions; the client merges progress and retries.
 
-Сам `index.html` по-прежнему можно открыть как гостевую версию без сервера. На обычном статическом хостинге, в том числе GitHub Pages, вход и серверная синхронизация недоступны.
+You can still open `index.html` directly for guest use without a backend. Accounts and server-side sync are unavailable on static hosting such as GitHub Pages.
 
-Для VPS нужен отдельный запуск WSGI-сервера (например, Gunicorn) за HTTPS-прокси. Укажите `NIHONGO_ORIGIN=https://ваш-домен` — это разрешённый адрес приложения и настройка Secure-cookie. Локальный Flask-сервер предназначен для разработки. Настройка VPS, HTTPS и резервного копирования SQLite — отдельный шаг; приложение пока запущено только локально. При резервном копировании работающей SQLite используйте её backup API, чтобы учесть журнал WAL.
+For production, run a WSGI server such as Gunicorn behind an HTTPS reverse proxy. Set `NIHONGO_ORIGIN=https://your-domain` to configure the allowed app origin and Secure cookies. The built-in Flask server is for development. See the VPS deployment instructions below and [deployment notes](deploy/DEPLOYMENT.md). When backing up a running SQLite database, use its backup API to include data from the WAL journal.
 
-Чтобы перенести прогресс или сохранить его перед очисткой браузера, откройте **Профиль → Резервная копия → Сохранить в файл**. На другом устройстве выберите **Восстановить из файла** и подтвердите замену. Копия содержит изученные слова, грамматику, ошибки, расписание повторений, XP, серию и пройденные темы. Настройки языка, звука и кандзи остаются на устройстве.
+To transfer progress or save it before clearing browser data, use **Profile → Backup → Save to file**. On another device, choose **Restore from file** and confirm replacement. Backups include vocabulary progress, grammar, mistakes, review schedules, XP, streaks, and completed topics. Language, audio, and kanji settings remain device-specific.
 
-Восстановление **заменяет** текущий прогресс, а при включённой облачной синхронизации — и его облачную копию. Сначала сохраните текущий прогресс в отдельный файл. Принимаются только резервные копии Nihongo jouzu размером до 5 МБ; неверный файл или ошибка сохранения не меняют текущий прогресс.
+Restoring a backup **replaces** current progress, including the server copy when sync is enabled. Save your current progress to a separate file first. Only Nihongo jouzu backups up to 5 MB are accepted; invalid files or save failures leave current progress unchanged.
 
-## 🗂️ Структура
+## 🗂️ Project structure
 
+```text
+index.html                  Built app (a single file)
+src/template.html           Markup and styles
+src/data.js                 Course: lessons, topics, vocabulary, notes, exercises
+src/words-en.js              English vocabulary and title translations
+src/i18n.js                  Interface strings in three languages
+src/app.js                  App logic, sign-in, and sync
+server/app.py               Flask backend: accounts, sessions, SQLite, progress and admin APIs
+server/monitor.html         VPS dashboard and user administration
+server/static/globe.js      Interactive VPN connection globe
+requirements.txt            Backend dependencies
+tests/                      Backend tests
+tools/accounts.browser.cjs  Optional account browser checks (Playwright)
+src/backup.js               Backup format, validation, and restoration
+src/legacy-v1.json          Original word order for migrating old progress; do not change
+tools/build.py              Builds index.html from src/
+tools/check.js              Script, word ID, translation, and interface key checks
+tools/backup.test.js        Backup tests (Node.js 18+)
 ```
-index.html          собранное приложение (одним файлом)
-src/template.html   разметка и стили
-src/data.js         курс: уроки, темы, слова, конспекты, упражнения
-src/words-en.js     английские переводы слов и названий
-src/i18n.js         тексты интерфейса на трёх языках
-src/app.js          логика приложения, вход и синхронизация
-server/app.py       сервер Flask: аккаунты, сессии, SQLite и API прогресса
-requirements.txt    зависимости сервера
-tests/             серверные тесты
-tools/accounts.browser.cjs браузерная проверка аккаунтов (необязательная, Playwright)
-src/backup.js       формат, проверка и восстановление резервных копий
-src/legacy-v1.json  порядок слов первой версии (для переноса старого прогресса; не менять)
-tools/build.py      собирает index.html из src/
-tools/check.js      проверки: скрипты, уникальные id слов, переводы, ключи интерфейса
-tools/backup.test.js тесты резервных копий (Node.js 18+)
-```
 
-После правок в `src/`:
+After editing files in `src/`:
 
-```
+```sh
 python3 tools/build.py
 node tools/check.js
 node --test tools/backup.test.js
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-## ➕ Как добавить слова
+## ➕ Adding vocabulary
 
-Новые слова добавляются в `topics[].items` нужного урока в `src/data.js` в виде `[кана, кандзи, ромадзи, перевод, заметка]`, английский перевод — в `src/words-en.js`.
+Add words to the relevant lesson's `topics[].items` in `src/data.js` using `[kana, kanji, romaji, translation, note]`. Add the English translation in `src/words-en.js`.
 
-Id слова — это `кана|кандзи`, поэтому не меняйте кану и кандзи у уже существующих слов, иначе прогресс по ним сбросится.
+A word's ID is `kana|kanji`. Changing the kana or kanji of an existing word breaks its link to saved progress.
 
-## 📖 Материалы
+## 📖 Learning materials
 
-Слова и грамматика составлены по учебнику *Genki: An Integrated Course in Elementary Japanese I* (The Japan Times) и материалам занятий. Приложение — личный учебный проект и не связано с издателем.
+Vocabulary and grammar are based on *Genki: An Integrated Course in Elementary Japanese I* (The Japan Times) and class materials. This is a personal learning project and is not affiliated with the publisher.
 
 ---
 
 がんばって！ made by [@Amuru](https://t.me/amuru)
 
-## 🖥️ Подготовка к VPS
+## 🖥️ VPS deployment
 
-Зависимости для постоянного запуска: `pip install -r deploy/requirements.txt`.
-Команда запуска из каталога проекта:
+Install production dependencies with `pip install -r deploy/requirements.txt`.
+Run from the project directory:
 
 ```sh
 gunicorn -c deploy/gunicorn.conf.py 'server.app:create_app()'
 ```
 
-Перед запуском задайте переменные окружения:
+Set these environment variables before starting:
 
-- `NIHONGO_ORIGIN` — точный HTTPS-адрес приложения без завершающего `/`.
-- `NIHONGO_DATABASE` — абсолютный путь к SQLite вне каталога обновляемого кода, например `/var/lib/nihongo-jouzu/nihongo.sqlite3`.
-- `NIHONGO_BEHIND_PROXY=1` — только при запуске за одним доверенным reverse proxy; порт приложения должен быть доступен только локально. Это позволяет ограничениям входа учитывать реальный IP посетителя.
+- `NIHONGO_ORIGIN`: the exact HTTPS app origin, without a trailing `/`.
+- `NIHONGO_DATABASE`: an absolute path to SQLite outside the application code directory, such as `/var/lib/nihongo-jouzu/nihongo.sqlite3`.
+- `NIHONGO_BEHIND_PROXY=1`: enable only behind one trusted reverse proxy, with the app port accessible only locally. This allows sign-in rate limits to use the visitor's real IP address.
 
-Конфигурация Gunicorn слушает `127.0.0.1:8765`. HTTPS-прокси и системную службу нужно настроить под конкретный VPS и его существующие сервисы.
+The Gunicorn configuration listens on `127.0.0.1:8765`. Configure the HTTPS proxy and system service for your VPS and its existing services.
 
-Резервная копия работающей базы с проверкой целостности:
+Create a backup of a running database with an integrity check:
 
 ```sh
 python3 tools/backup_db.py /var/lib/nihongo-jouzu/nihongo.sqlite3 /var/backups/nihongo-jouzu
 ```
 
-Скрипт создаёт новый файл и не удаляет предыдущие копии. Автоматическое расписание, срок хранения и копирование за пределы VPS настраиваются отдельно.
+This script creates a new file without deleting previous backups. Configure scheduling, retention, and off-site storage separately.
 
-### Контейнерный запуск
+### Container deployment
 
-На VPS исходники размещаются в `/opt/nihongo-jouzu`. В `.env` указывается `SITE_HOST` без `https://`. Каталоги `data/` и `backups/` должны принадлежать UID/GID `10001:10001` и иметь права `750`.
+On the VPS, place the source in `/opt/nihongo-jouzu`. Set `SITE_HOST` in `.env` without `https://`. The `data/` and `backups/` directories must be owned by UID/GID `10001:10001` with permissions `750`.
 
 ```sh
 docker compose --profile public up -d --build
 ```
 
-Приложение доступно только внутри сети контейнеров. Caddy публикует порты 80 и 443 и получает HTTPS-сертификат. Данные SQLite в `data/` сохраняются при пересоздании контейнеров. Не удаляйте `data/`, `backups/` и тома Caddy при обновлении. Скрипт `deploy/backup.sh` создаёт копию базы и удаляет только её копии старше 30 дней после успешного резервирования.
+The app is accessible only inside the container network. Caddy exposes ports 80 and 443 and obtains an HTTPS certificate. SQLite data in `data/` survives container recreation. Do not delete `data/`, `backups/`, or Caddy volumes during updates. The `deploy/backup.sh` script creates a database backup and removes only matching backups older than 30 days after a successful backup.
 
-Чтобы обновить приложение, сначала выполните `deploy/backup.sh`, затем загрузите новый код, не затрагивая `.env`, `data/` и `backups/`, и повторите команду запуска. При смене домена измените `SITE_HOST`, направьте DNS на VPS и пересоздайте контейнеры. Пользователям потребуется снова войти; аккаунты и серверный прогресс сохранятся.
+To update the app, run `deploy/backup.sh`, upload the new code without replacing `.env`, `data/`, or `backups/`, then repeat the startup command. To change domains, update `SITE_HOST`, point DNS to the VPS, and recreate the containers. Users will need to sign in again; accounts and server-side progress are preserved.
 
-### Панель состояния VPS
+### VPS status dashboard
 
-Панель `/status` показывает состояние сервисов, нагрузку, память, диск и VPN-устройства. Вход — существующим аккаунтом владельца; список разрешённых ID задаётся сервером через `MONITOR_ADMINS`. Обычные пользователи не имеют доступа к показателям или IP-адресам.
+The `/status` dashboard shows service status, CPU load, memory, disk usage, VPN clients, and fail2ban statistics. It includes interactive load charts, IP-based geolocation, a 3D connection globe, and a Nihongo jouzu tab listing registered users.
 
-Сборщик `tools/collect_monitor.py` запускается systemd каждые 30 секунд и сохраняет только необходимые показатели в отдельный файл. Контейнер сайта читает файл, но не имеет доступа к Docker socket. Команды сборщика не изменяют VPN и не читают приватные ключи. Инструкция по размещению — `deploy/DEPLOYMENT.md`.
+Owners are configured through `MONITOR_ADMINS` in the server environment and can grant or revoke dashboard access for existing accounts. Delegated administrators can view the dashboard but cannot manage roles. Ordinary users cannot access metrics, IP addresses, or the user list. Secret codes and session tokens are never included in the list.
+
+The VPN privacy toggle hides IP addresses and location names. Points and connection arcs remain visible on the globe, so approximate geographic positions are still shown.
+
+The `tools/collect_monitor.py` collector runs through systemd every 30 seconds and writes the required metrics to a separate file. The web container reads this file without access to the Docker socket. Collector commands do not change VPN settings or read private keys. IP geolocation uses ipwho.is with cached results. The dashboard runs on the VPS itself, so it is unavailable during a complete server outage.
+
+See [deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md) for setup and operational details.
