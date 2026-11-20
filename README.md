@@ -27,7 +27,6 @@ python3 -m venv .venv
 python3 tools/build.py
 .venv/bin/python -m server.app
 ```
-
 Open `http://127.0.0.1:8765/`, then go to **Profile → Sign in → Create account**. Usernames must contain 3–32 Latin letters, digits, or underscores (`_`), and are case-insensitive. Permanent secret codes must contain 4–128 characters and must be entered twice during registration. Self-service recovery for forgotten codes is not yet available.
 
 The backend stores accounts, sessions, and progress in `instance/nihongo.sqlite3`. This file and the local Python environment are excluded from Git. Codes are stored using PBKDF2-HMAC-SHA256 with individual random salts and 600,000 iterations. Sessions use random tokens in HttpOnly/SameSite cookies and expire after 30 days. The server rate-limits repeated sign-in attempts.
@@ -95,7 +94,6 @@ Run from the project directory:
 ```sh
 gunicorn -c deploy/gunicorn.conf.py 'server.app:create_app()'
 ```
-
 Set these environment variables before starting:
 
 - `NIHONGO_ORIGIN`: the exact HTTPS app origin, without a trailing `/`.
@@ -119,7 +117,6 @@ On the VPS, place the source in `/opt/nihongo-jouzu`. Set `SITE_HOST` in `.env` 
 ```sh
 docker compose --profile public up -d --build
 ```
-
 The app is accessible only inside the container network. Caddy exposes ports 80 and 443 and obtains an HTTPS certificate. SQLite data in `data/` survives container recreation. Do not delete `data/`, `backups/`, or Caddy volumes during updates. The `deploy/backup.sh` script creates a database backup and removes only matching backups older than 30 days after a successful backup.
 
 To update the app, run `deploy/backup.sh`, upload the new code without replacing `.env`, `data/`, or `backups/`, then repeat the startup command. To change domains, update `SITE_HOST`, point DNS to the VPS, and recreate the containers. Users will need to sign in again; accounts and server-side progress are preserved.
